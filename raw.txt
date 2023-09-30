@@ -238,7 +238,8 @@ Name: Decorative - Grants: +1 ☐
 You are unfailingly cute and pretty and feminine at all times, in all circumstances. You cannot wear insufficiently pretty clothes. You cannot make insufficiently pretty noises. You cannot ugly cry.
 
 Name: Beauty Is A Curse - Grants: +1 ☐
-"(Requires A Thousand Ships) No, you don't understand. Beauty IS a curse. People will NOT stop bringing it up. Everyone you meet just has to point out how pretty you are. This will never stop happening. Even the most tactful people find it slipping out subtly, as remarks about the luster of your hair or the depth of your eyes."
+(Requires A Thousand Ships)
+No, you don't understand. Beauty IS a curse. People will NOT stop bringing it up. Everyone you meet just has to point out how pretty you are. This will never stop happening. Even the most tactful people find it slipping out subtly, as remarks about the luster of your hair or the depth of your eyes."
 
 Name: Plain Jane - Grants: +2 ☐
 No matter what you look like, nor how many times people tell you you're beautiful, when you look in the mirror all you see is imperfections. You will never be fully satisfied with your appearance on an instinctive level.

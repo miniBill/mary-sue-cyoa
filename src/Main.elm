@@ -1,20 +1,28 @@
-module Main exposing (Flags, Model, Msg, Power, Section, main)
+module Main exposing (Flags, Model, Msg, Power, Section, WebData, main)
 
+import AppUrl
+import Base64
 import Browser
+import Browser.Navigation exposing (Key)
+import Codec.Bare exposing (Codec)
 import Element exposing (Attribute, Element, alignRight, column, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Http
+import List.Extra
 import Parser exposing ((|.), (|=), Parser)
+import Set exposing (Set)
 import Theme
+import Url exposing (Url)
 
 
 type alias Model =
-    WebData
-        { sections : List Section
-        }
+    { key : Key
+    , selected : List (Set Int)
+    , data : WebData (List Section)
+    }
 
 
 type WebData a
@@ -35,14 +43,15 @@ type alias Power =
     { name : String
     , cost : Int
     , description : String
-    , selected : Bool
     , requires : List String
     }
 
 
 type Msg
-    = Select String Bool
+    = Select Int Int Bool
     | GotRaw (Result Http.Error String)
+    | UrlChange Url
+    | UrlRequest Browser.UrlRequest
 
 
 type alias Flags =
@@ -51,20 +60,26 @@ type alias Flags =
 
 main : Program Flags Model Msg
 main =
-    Browser.element
+    Browser.application
         { init = init
         , view =
             \model ->
-                Element.layout [] <|
-                    view model
+                { title = "no vices for you to exploit"
+                , body =
+                    [ Element.layout [] <|
+                        view model
+                    ]
+                }
         , update = update
         , subscriptions = subscriptions
+        , onUrlChange = UrlChange
+        , onUrlRequest = UrlRequest
         }
 
 
-init : Flags -> ( Model, Cmd Msg )
-init _ =
-    ( Loading
+init : Flags -> Url -> Key -> ( Model, Cmd Msg )
+init _ url key =
+    ( initialModel url key
     , Http.get
         { url = "./raw.txt"
         , expect = Http.expectString GotRaw
@@ -72,9 +87,39 @@ init _ =
     )
 
 
+initialModel : Url -> Key -> Model
+initialModel url key =
+    { key = key
+    , selected = urlToSelected url
+    , data = Loading
+    }
+
+
+urlToSelected : Url -> List (Set Int)
+urlToSelected url =
+    AppUrl.fromUrl url
+        |> .fragment
+        |> Maybe.andThen Base64.toBytes
+        |> Maybe.andThen (Codec.Bare.decodeValue urlCodec)
+        |> Maybe.withDefault []
+
+
+selectedToUrl : List (Set Int) -> String
+selectedToUrl selected =
+    selected
+        |> Codec.Bare.encodeToValue urlCodec
+        |> Base64.fromBytes
+        |> Maybe.withDefault ""
+
+
+urlCodec : Codec (List (Set Int))
+urlCodec =
+    Codec.Bare.list (Codec.Bare.set Codec.Bare.int)
+
+
 view : Model -> Element Msg
 view model =
-    case model of
+    case model.data of
         Loading ->
             text "Loading..."
 
@@ -84,9 +129,29 @@ view model =
         ParseError e ->
             text <| Debug.toString e
 
-        Success { sections } ->
+        Success sections ->
+            let
+                selected : Set String
+                selected =
+                    sections
+                        |> List.map2 Tuple.pair model.selected
+                        |> List.concatMap
+                            (\( selectedInSection, { powers } ) ->
+                                powers
+                                    |> List.indexedMap
+                                        (\index power ->
+                                            if Set.member index selectedInSection then
+                                                Just power.name
+
+                                            else
+                                                Nothing
+                                        )
+                                    |> List.filterMap identity
+                            )
+                        |> Set.fromList
+            in
             column [ height fill ]
-                [ viewScore sections
+                [ viewScore selected sections
                 , Theme.column
                     [ scrollbarY
                     , paddingEach
@@ -97,32 +162,38 @@ view model =
                         }
                     , height fill
                     ]
-                    (List.map (viewSection sections) sections)
+                    (List.indexedMap
+                        (\sectionIndex section ->
+                            Element.map
+                                (\( powerIndex, value ) -> Select sectionIndex powerIndex value)
+                                (viewSection selected section)
+                        )
+                        sections
+                    )
                 ]
 
 
-viewScore : List Section -> Element Msg
-viewScore sections =
+viewScore : Set String -> List Section -> Element Msg
+viewScore selected sections =
     let
-        sumBy : (a -> Int) -> List a -> Int
-        sumBy f list =
-            List.sum (List.map f list)
-
         sum : Int
         sum =
-            sumBy sumSection sections
+            sections
+                |> List.map sumSection
+                |> List.sum
 
         sumSection : Section -> Int
         sumSection { powers } =
-            sumBy
-                (\{ cost, selected } ->
-                    if selected then
-                        cost
+            powers
+                |> List.map
+                    (\{ name, cost } ->
+                        if Set.member name selected then
+                            cost
 
-                    else
-                        0
-                )
-                powers
+                        else
+                            0
+                    )
+                |> List.sum
 
         common : List (Attribute msg)
         common =
@@ -140,8 +211,8 @@ viewScore sections =
         (text <| "Score " ++ String.fromInt sum ++ "/70")
 
 
-viewSection : List Section -> Section -> Element Msg
-viewSection sections section =
+viewSection : Set String -> Section -> Element ( Int, Bool )
+viewSection selected section =
     Theme.column
         [ Border.width 1
         , Theme.padding
@@ -149,23 +220,25 @@ viewSection sections section =
         ]
         (el [ Font.bold ] (text section.name)
             :: List.map (\line -> paragraph [] [ text line ]) section.description
-            ++ List.map (viewPower sections) section.powers
+            ++ List.indexedMap
+                (\powerIndex power -> Element.map (Tuple.pair powerIndex) (viewPower selected power))
+                section.powers
         )
 
 
-viewPower : List Section -> Power -> Element Msg
-viewPower sections power =
+viewPower : Set String -> Power -> Element Bool
+viewPower selected power =
     let
         missingPrereq : List String
         missingPrereq =
-            List.filter (\name -> not <| hasSelected name sections) power.requires
+            List.filter (\name -> not <| Set.member name selected) power.requires
 
         viewRequirement : String -> Element msg
         viewRequirement requirement =
             el
                 [ Font.color <|
                     if List.member requirement missingPrereq then
-                        if power.selected then
+                        if Set.member power.name selected then
                             rgb 1 0 0
 
                         else
@@ -181,7 +254,7 @@ viewPower sections power =
         , Theme.padding
         , width fill
         , Background.color <|
-            if power.selected then
+            if Set.member power.name selected then
                 if List.isEmpty missingPrereq then
                     rgb 0.7 1 0.7
 
@@ -194,7 +267,7 @@ viewPower sections power =
             else
                 rgb 0.9 0.9 0.9
         ]
-        { onPress = Just <| Select power.name (not power.selected)
+        { onPress = Just <| not <| Set.member power.name selected
         , label =
             Theme.column [ width fill ]
                 [ Theme.row [ width fill ]
@@ -221,65 +294,65 @@ viewPower sections power =
         }
 
 
-hasSelected : String -> List Section -> Bool
-hasSelected name sections =
-    List.any
-        (\section ->
-            List.any
-                (\power ->
-                    power.name == name && power.selected
-                )
-                section.powers
-        )
-        sections
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case ( msg, model ) of
-        ( GotRaw (Err e), _ ) ->
-            ( HttpError e, Cmd.none )
+    case msg of
+        GotRaw (Err e) ->
+            ( { model | data = HttpError e }, Cmd.none )
 
-        ( GotRaw (Ok raw), _ ) ->
+        GotRaw (Ok raw) ->
             case Parser.run mainParser raw of
                 Err e ->
-                    ( ParseError <| Debug.toString e, Cmd.none )
+                    ( { model | data = ParseError <| Debug.toString e }, Cmd.none )
 
                 Ok newModel ->
-                    ( Success newModel, Cmd.none )
+                    ( { model
+                        | data = Success newModel
+                        , selected =
+                            model.selected
+                                ++ List.repeat
+                                    (List.length newModel - List.length model.selected)
+                                    Set.empty
+                      }
+                    , Cmd.none
+                    )
 
-        ( Select name selected, Success submodel ) ->
+        Select section powerIndex selected ->
             let
-                updateSection : Section -> Section
-                updateSection section =
-                    { section
-                        | powers =
-                            List.map updatePower section.powers
-                    }
+                newSelected : List (Set Int)
+                newSelected =
+                    List.Extra.updateAt section
+                        (if selected then
+                            Set.insert powerIndex
 
-                updatePower : Power -> Power
-                updatePower power =
-                    if power.name == name then
-                        { power | selected = selected }
-
-                    else
-                        power
+                         else
+                            Set.remove powerIndex
+                        )
+                        model.selected
             in
-            ( Success
-                { submodel
-                    | sections =
-                        List.map updateSection submodel.sections
-                }
-            , Cmd.none
+            ( { model
+                | selected =
+                    newSelected
+              }
+            , Browser.Navigation.replaceUrl model.key
+                ("#" ++ selectedToUrl newSelected)
             )
 
-        ( Select _ _, _ ) ->
-            ( model, Cmd.none )
+        UrlChange url ->
+            ( { model | selected = urlToSelected url }, Cmd.none )
+
+        UrlRequest (Browser.External ext) ->
+            ( model, Browser.Navigation.load ext )
+
+        UrlRequest (Browser.Internal url) ->
+            ( { model | selected = urlToSelected url }
+            , Browser.Navigation.pushUrl model.key (Url.toString url)
+            )
 
 
-mainParser : Parser { sections : List Section }
+mainParser : Parser (List Section)
 mainParser =
-    Parser.succeed (\sections -> { sections = sections })
+    Parser.succeed identity
         |= many parseSection
         |. Parser.end
 
@@ -323,7 +396,6 @@ powerParser =
             , cost = cost
             , requires = requires
             , description = description
-            , selected = False
             }
         )
         |. Parser.token "Name: "

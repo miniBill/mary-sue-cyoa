@@ -3,8 +3,9 @@ module Main exposing (Choices, Flags, Model, Msg, Power, Section, Tier, WebData,
 import AppUrl
 import Browser
 import Browser.Navigation exposing (Key)
+import Color
 import Dict exposing (Dict)
-import Element exposing (Attribute, Color, Element, alignRight, column, el, fill, height, paddingEach, paragraph, rgb, rgb255, row, scrollbarY, text, width)
+import Element exposing (Attribute, Color, Element, alignRight, centerY, column, el, fill, height, paddingEach, paragraph, rgb, rgb255, row, scrollbarY, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -207,26 +208,26 @@ tierToString tier =
             "F"
 
 
-tierToColor : Tier -> Color
+tierToColor : Tier -> Color.Color
 tierToColor tier =
     case tier of
         S ->
-            rgb255 0x02 0xAF 0xF0
+            Color.rgb255 0x02 0xAF 0xF0
 
         A ->
-            rgb255 0x00 0xAE 0x50
+            Color.rgb255 0x00 0xAE 0x50
 
         B ->
-            rgb255 0x92 0xCF 0x50
+            Color.rgb255 0x92 0xCF 0x50
 
         C ->
-            rgb255 0xFE 0xD9 0x66
+            Color.rgb255 0xFE 0xD9 0x66
 
         D ->
-            rgb255 0xF7 0x86 0x1C
+            Color.rgb255 0xF7 0x86 0x1C
 
         F ->
-            rgb255 0xAC 0x00 0x00
+            Color.rgb255 0xAC 0x00 0x00
 
 
 view : Model -> Element Msg
@@ -276,8 +277,8 @@ viewToggle choices =
             Simple _ ->
                 Just SimpleKind
     , options =
-        [ Input.option TieredKind (text "Tiered")
-        , Input.option SimpleKind (text "Simple")
+        [ Input.option SimpleKind (text "Simple")
+        , Input.option TieredKind (text "Tiered")
         ]
     }
         |> Input.radioRow [ Theme.spacing ]
@@ -338,8 +339,7 @@ viewSection choices section =
 viewPower : Choices -> Power -> Element Msg
 viewPower choices power =
     let
-        tier : Maybe Tier
-        tier =
+        currentTier =
             powerTier choices power.name
 
         missingPrereq : List String
@@ -353,7 +353,7 @@ viewPower choices power =
             el
                 [ Font.color <|
                     if List.member requirement missingPrereq then
-                        if tier == Nothing then
+                        if currentTier == Nothing then
                             rgb 0.6 0.4 0
 
                         else
@@ -363,34 +363,9 @@ viewPower choices power =
                         rgb 0.4 0.6 0
                 ]
                 (text requirement)
-    in
-    Input.button
-        [ Border.width 1
-        , Theme.padding
-        , width fill
-        , Background.color <|
-            if tier == Nothing then
-                if List.isEmpty missingPrereq then
-                    rgb 0.9 0.9 1
 
-                else
-                    rgb 0.9 0.9 0.9
-
-            else if List.isEmpty missingPrereq then
-                rgb 0.7 1 0.7
-
-            else
-                rgb 1 0.7 0.7
-        ]
-        { onPress =
-            Just <|
-                ChooseTier power.name <|
-                    if tier == Nothing then
-                        Just S
-
-                    else
-                        Nothing
-        , label =
+        label : Element msg
+        label =
             Theme.column [ width fill ]
                 [ Theme.row [ width fill ]
                     [ el [ Font.bold ] <| text power.name
@@ -413,7 +388,102 @@ viewPower choices power =
                                 (List.map viewRequirement power.requires)
                 , paragraph [] [ text power.description ]
                 ]
-        }
+
+        common : List (Attribute msg)
+        common =
+            [ Theme.padding
+            , Border.width 1
+            , width fill
+            ]
+    in
+    case choices of
+        Tiered _ ->
+            Theme.row common <|
+                label
+                    :: List.map
+                        (\tier ->
+                            let
+                                selected : Bool
+                                selected =
+                                    Just tier == currentTier
+                            in
+                            Input.button
+                                [ if selected then
+                                    Background.color <| colorToColor <| tierToColor tier
+
+                                  else
+                                    Background.color <| colorToColor <| hslaMap (\hsla -> { hsla | saturation = 0.2 }) <| tierToColor tier
+                                , Theme.padding
+                                , Border.width 1
+                                ]
+                                { onPress =
+                                    Just
+                                        (ChooseTier power.name <|
+                                            if selected then
+                                                Nothing
+
+                                            else
+                                                Just tier
+                                        )
+                                , label = text <| tierToString tier
+                                }
+                        )
+                        [ S, A, B, C, D, F ]
+
+        Simple _ ->
+            Input.button
+                ((Background.color <|
+                    if currentTier == Nothing then
+                        if List.isEmpty missingPrereq then
+                            rgb 0.9 0.9 1
+
+                        else
+                            rgb 0.9 0.9 0.9
+
+                    else if List.isEmpty missingPrereq then
+                        rgb 0.7 1 0.7
+
+                    else
+                        rgb 1 0.7 0.7
+                 )
+                    :: common
+                )
+                { onPress =
+                    Just <|
+                        ChooseTier power.name <|
+                            if currentTier == Nothing then
+                                Just S
+
+                            else
+                                Nothing
+                , label = label
+                }
+
+
+hslaMap : (Hsla -> Hsla) -> Color.Color -> Color.Color
+hslaMap f color =
+    color
+        |> Color.toHsla
+        |> f
+        |> Color.fromHsla
+
+
+type alias Hsla =
+    { alpha : Float
+    , lightness : Float
+    , hue : Float
+    , saturation : Float
+    }
+
+
+colorToColor : Color.Color -> Color
+colorToColor color =
+    let
+        rgba : { red : Float, green : Float, blue : Float, alpha : Float }
+        rgba =
+            Color.toRgba color
+    in
+    Element.rgba rgba.red rgba.green rgba.blue rgba.alpha
 
 
 powerTier : Choices -> String -> Maybe Tier

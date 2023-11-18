@@ -1,28 +1,42 @@
-module Main exposing (Flags, Model, Msg, Power, Section, WebData, main)
+module Main exposing (Flags, Model, Msg, Power, Section, Tier, WebData, main)
 
 import AppUrl
-import Base64
 import Browser
 import Browser.Navigation exposing (Key)
-import Codec.Bare exposing (Codec)
-import Element exposing (Attribute, Element, alignRight, column, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
+import Dict exposing (Dict)
+import Element exposing (Attribute, Color, Element, alignRight, column, el, fill, height, paddingEach, paragraph, rgb, rgb255, scrollbarY, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Http
-import List.Extra
+import Maybe.Extra
 import Parser exposing ((|.), (|=), Parser)
 import Set exposing (Set)
 import Theme
 import Url exposing (Url)
+import Url.Builder
 
 
 type alias Model =
     { key : Key
-    , selected : List (Set Int)
+    , choices : Choices
     , data : WebData (List Section)
     }
+
+
+type Choices
+    = Tiered (Dict String Tier)
+    | Simple (Set String)
+
+
+type Tier
+    = S
+    | A
+    | B
+    | C
+    | D
+    | F
 
 
 type WebData a
@@ -48,7 +62,7 @@ type alias Power =
 
 
 type Msg
-    = Select Int Int Bool
+    = ChooseTier String (Maybe Tier)
     | GotRaw (Result Http.Error String)
     | UrlChange Url
     | UrlRequest Browser.UrlRequest
@@ -64,7 +78,7 @@ main =
         { init = init
         , view =
             \model ->
-                { title = "no vices for you to exploit"
+                { title = "Mary Sue CYOA"
                 , body =
                     [ Element.layout [] <|
                         view model
@@ -90,31 +104,123 @@ init _ url key =
 initialModel : Url -> Key -> Model
 initialModel url key =
     { key = key
-    , selected = urlToSelected url
+    , choices = urlToChoices url
     , data = Loading
     }
 
 
-urlToSelected : Url -> List (Set Int)
-urlToSelected url =
-    AppUrl.fromUrl url
-        |> .fragment
-        |> Maybe.andThen Base64.toBytes
-        |> Maybe.andThen (Codec.Bare.decodeValue urlCodec)
-        |> Maybe.withDefault []
+urlToChoices : Url -> Choices
+urlToChoices url =
+    let
+        list : List ( String, List String )
+        list =
+            (AppUrl.fromUrl url).queryParameters
+                |> Dict.toList
+
+        tiered : Maybe (List ( String, Tier ))
+        tiered =
+            list
+                |> Maybe.Extra.traverse
+                    (\( key, tier ) ->
+                        Maybe.map (Tuple.pair key) (tierFromString tier)
+                    )
+    in
+    case tiered of
+        Just t ->
+            t
+                |> Dict.fromList
+                |> Tiered
+
+        Nothing ->
+            list
+                |> List.map Tuple.first
+                |> Set.fromList
+                |> Simple
 
 
-selectedToUrl : List (Set Int) -> String
+tierFromString : List String -> Maybe Tier
+tierFromString strings =
+    case strings of
+        [ "S" ] ->
+            Just S
+
+        [ "A" ] ->
+            Just A
+
+        [ "B" ] ->
+            Just B
+
+        [ "C" ] ->
+            Just C
+
+        [ "D" ] ->
+            Just D
+
+        [ "F" ] ->
+            Just F
+
+        _ ->
+            Nothing
+
+
+selectedToUrl : Choices -> String
 selectedToUrl selected =
-    selected
-        |> Codec.Bare.encodeToValue urlCodec
-        |> Base64.fromBytes
-        |> Maybe.withDefault ""
+    case selected of
+        Tiered tiers ->
+            tiers
+                |> Dict.toList
+                |> List.map (\( key, value ) -> Url.Builder.string key <| tierToString value)
+                |> Url.Builder.absolute []
+
+        Simple choices ->
+            choices
+                |> Set.toList
+                |> List.map (\key -> Url.Builder.string key "Y")
+                |> Url.Builder.absolute []
 
 
-urlCodec : Codec (List (Set Int))
-urlCodec =
-    Codec.Bare.list (Codec.Bare.set Codec.Bare.int)
+tierToString : Tier -> String
+tierToString tier =
+    case tier of
+        S ->
+            "S"
+
+        A ->
+            "A"
+
+        B ->
+            "B"
+
+        C ->
+            "C"
+
+        D ->
+            "D"
+
+        F ->
+            "F"
+
+
+tierToColor : Tier -> Color
+tierToColor tier =
+    case tier of
+        S ->
+            rgb255 0x02 0xAF 0xF0
+
+        A ->
+            rgb255 0x00 0xAE 0x50
+
+        B ->
+            rgb255 0x92 0xCF 0x50
+
+        C ->
+            rgb255 0xFE 0xD9 0x66
+
+        D ->
+            rgb255 0xF7 0x86 0x1C
+
+        F ->
+            rgb255 0xAC 0x00 0x00
 
 
 view : Model -> Element Msg
@@ -130,28 +236,8 @@ view model =
             text <| Debug.toString e
 
         Success sections ->
-            let
-                selected : Set String
-                selected =
-                    sections
-                        |> List.map2 Tuple.pair model.selected
-                        |> List.concatMap
-                            (\( selectedInSection, { powers } ) ->
-                                powers
-                                    |> List.indexedMap
-                                        (\index power ->
-                                            if Set.member index selectedInSection then
-                                                Just power.name
-
-                                            else
-                                                Nothing
-                                        )
-                                    |> List.filterMap identity
-                            )
-                        |> Set.fromList
-            in
             column [ height fill ]
-                [ viewScore selected sections
+                [ viewScore model.choices sections
                 , Theme.column
                     [ scrollbarY
                     , paddingEach
@@ -162,18 +248,14 @@ view model =
                         }
                     , height fill
                     ]
-                    (List.indexedMap
-                        (\sectionIndex section ->
-                            Element.map
-                                (\( powerIndex, value ) -> Select sectionIndex powerIndex value)
-                                (viewSection selected section)
-                        )
+                    (List.map
+                        (viewSection model.choices)
                         sections
                     )
                 ]
 
 
-viewScore : Set String -> List Section -> Element Msg
+viewScore : Choices -> List Section -> Element Msg
 viewScore selected sections =
     let
         sum : Int
@@ -187,11 +269,11 @@ viewScore selected sections =
             powers
                 |> List.map
                     (\{ name, cost } ->
-                        if Set.member name selected then
-                            cost
+                        if powerTier selected name == Nothing then
+                            0
 
                         else
-                            0
+                            cost
                     )
                 |> List.sum
 
@@ -211,8 +293,8 @@ viewScore selected sections =
         (text <| "Score " ++ String.fromInt sum ++ "/70")
 
 
-viewSection : Set String -> Section -> Element ( Int, Bool )
-viewSection selected section =
+viewSection : Choices -> Section -> Element Msg
+viewSection choices section =
     Theme.column
         [ Border.width 1
         , Theme.padding
@@ -220,29 +302,35 @@ viewSection selected section =
         ]
         (el [ Font.bold ] (text section.name)
             :: List.map (\line -> paragraph [] [ text line ]) section.description
-            ++ List.indexedMap
-                (\powerIndex power -> Element.map (Tuple.pair powerIndex) (viewPower selected power))
+            ++ List.map
+                (viewPower choices)
                 section.powers
         )
 
 
-viewPower : Set String -> Power -> Element Bool
-viewPower selected power =
+viewPower : Choices -> Power -> Element Msg
+viewPower choices power =
     let
+        tier : Maybe Tier
+        tier =
+            powerTier choices power.name
+
         missingPrereq : List String
         missingPrereq =
-            List.filter (\name -> not <| Set.member name selected) power.requires
+            List.filter
+                (\name -> powerTier choices name == Nothing)
+                power.requires
 
         viewRequirement : String -> Element msg
         viewRequirement requirement =
             el
                 [ Font.color <|
                     if List.member requirement missingPrereq then
-                        if Set.member power.name selected then
-                            rgb 1 0 0
+                        if tier == Nothing then
+                            rgb 0.6 0.4 0
 
                         else
-                            rgb 0.6 0.4 0
+                            rgb 1 0 0
 
                     else
                         rgb 0.4 0.6 0
@@ -254,20 +342,27 @@ viewPower selected power =
         , Theme.padding
         , width fill
         , Background.color <|
-            if Set.member power.name selected then
+            if tier == Nothing then
                 if List.isEmpty missingPrereq then
-                    rgb 0.7 1 0.7
+                    rgb 0.9 0.9 1
 
                 else
-                    rgb 1 0.7 0.7
+                    rgb 0.9 0.9 0.9
 
             else if List.isEmpty missingPrereq then
-                rgb 0.9 0.9 1
+                rgb 0.7 1 0.7
 
             else
-                rgb 0.9 0.9 0.9
+                rgb 1 0.7 0.7
         ]
-        { onPress = Just <| not <| Set.member power.name selected
+        { onPress =
+            Just <|
+                ChooseTier power.name <|
+                    if tier == Nothing then
+                        Just S
+
+                    else
+                        Nothing
         , label =
             Theme.column [ width fill ]
                 [ Theme.row [ width fill ]
@@ -294,6 +389,20 @@ viewPower selected power =
         }
 
 
+powerTier : Choices -> String -> Maybe Tier
+powerTier choices name =
+    case choices of
+        Tiered tiered ->
+            Dict.get name tiered
+
+        Simple simple ->
+            if Set.member name simple then
+                Just S
+
+            else
+                Nothing
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -303,51 +412,59 @@ update msg model =
         GotRaw (Ok raw) ->
             case Parser.run mainParser raw of
                 Err e ->
-                    ( { model | data = ParseError <| Debug.toString e }, Cmd.none )
+                    ( { model | data = ParseError <| errorToString e }, Cmd.none )
 
                 Ok newModel ->
                     ( { model
                         | data = Success newModel
-                        , selected =
-                            model.selected
-                                ++ List.repeat
-                                    (List.length newModel - List.length model.selected)
-                                    Set.empty
                       }
                     , Cmd.none
                     )
 
-        Select section powerIndex selected ->
+        ChooseTier name tier ->
             let
-                newSelected : List (Set Int)
-                newSelected =
-                    List.Extra.updateAt section
-                        (if selected then
-                            Set.insert powerIndex
+                newChoices : Choices
+                newChoices =
+                    case ( tier, model.choices ) of
+                        ( Just t, Tiered tiered ) ->
+                            Tiered <| Dict.insert name t tiered
 
-                         else
-                            Set.remove powerIndex
-                        )
-                        model.selected
+                        ( Nothing, Tiered tiered ) ->
+                            Tiered <| Dict.remove name tiered
+
+                        ( Just _, Simple simple ) ->
+                            Simple <| Set.insert name simple
+
+                        ( Nothing, Simple simple ) ->
+                            Simple <| Set.remove name simple
             in
-            ( { model
-                | selected =
-                    newSelected
-              }
+            ( { model | choices = newChoices }
             , Browser.Navigation.replaceUrl model.key
-                ("#" ++ selectedToUrl newSelected)
+                (selectedToUrl newChoices)
             )
 
         UrlChange url ->
-            ( { model | selected = urlToSelected url }, Cmd.none )
+            ( { model | choices = urlToChoices url }, Cmd.none )
 
         UrlRequest (Browser.External ext) ->
             ( model, Browser.Navigation.load ext )
 
         UrlRequest (Browser.Internal url) ->
-            ( { model | selected = urlToSelected url }
+            ( { model | choices = urlToChoices url }
             , Browser.Navigation.pushUrl model.key (Url.toString url)
             )
+
+
+errorToString : List Parser.DeadEnd -> String
+errorToString deadEnds =
+    String.join "\n" <|
+        "Error:"
+            :: List.map deadEndToString deadEnds
+
+
+deadEndToString : Parser.DeadEnd -> String
+deadEndToString deadEnd =
+    Debug.toString deadEnd
 
 
 mainParser : Parser (List Section)

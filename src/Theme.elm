@@ -1,4 +1,4 @@
-module Theme exposing (column, padding, row, rythm)
+module Theme exposing (column, padding, row, rythm, spacing)
 
 import Element exposing (Attribute, Element)
 

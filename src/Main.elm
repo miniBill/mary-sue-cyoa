@@ -1,10 +1,10 @@
-module Main exposing (Flags, Model, Msg, Power, Section, Tier, WebData, main)
+module Main exposing (Choices, Flags, Model, Msg, Power, Section, Tier, WebData, main)
 
 import AppUrl
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
-import Element exposing (Attribute, Color, Element, alignRight, column, el, fill, height, paddingEach, paragraph, rgb, rgb255, scrollbarY, text, width)
+import Element exposing (Attribute, Color, Element, alignRight, column, el, fill, height, paddingEach, paragraph, rgb, rgb255, row, scrollbarY, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -66,6 +66,12 @@ type Msg
     | GotRaw (Result Http.Error String)
     | UrlChange Url
     | UrlRequest Browser.UrlRequest
+    | ToggleKind Kind
+
+
+type Kind
+    = TieredKind
+    | SimpleKind
 
 
 type alias Flags =
@@ -163,8 +169,8 @@ tierFromString strings =
             Nothing
 
 
-selectedToUrl : Choices -> String
-selectedToUrl selected =
+choicesToUrl : Choices -> String
+choicesToUrl selected =
     case selected of
         Tiered tiers ->
             tiers
@@ -237,7 +243,10 @@ view model =
 
         Success sections ->
             column [ height fill ]
-                [ viewScore model.choices sections
+                [ row [ Theme.padding, width fill ]
+                    [ viewScore model.choices sections
+                    , viewToggle model.choices
+                    ]
                 , Theme.column
                     [ scrollbarY
                     , paddingEach
@@ -255,8 +264,28 @@ view model =
                 ]
 
 
+viewToggle : Choices -> Element Msg
+viewToggle choices =
+    { onChange = ToggleKind
+    , label = Input.labelHidden "Kind"
+    , selected =
+        case choices of
+            Tiered _ ->
+                Just TieredKind
+
+            Simple _ ->
+                Just SimpleKind
+    , options =
+        [ Input.option TieredKind (text "Tiered")
+        , Input.option SimpleKind (text "Simple")
+        ]
+    }
+        |> Input.radioRow [ Theme.spacing ]
+        |> el [ alignRight ]
+
+
 viewScore : Choices -> List Section -> Element Msg
-viewScore selected sections =
+viewScore choices sections =
     let
         sum : Int
         sum =
@@ -269,7 +298,7 @@ viewScore selected sections =
             powers
                 |> List.map
                     (\{ name, cost } ->
-                        if powerTier selected name == Nothing then
+                        if powerTier choices name == Nothing then
                             0
 
                         else
@@ -279,9 +308,7 @@ viewScore selected sections =
 
         common : List (Attribute msg)
         common =
-            [ Theme.padding
-            , Font.bold
-            ]
+            [ Font.bold ]
     in
     el
         (if sum > 70 then
@@ -421,6 +448,33 @@ update msg model =
                     , Cmd.none
                     )
 
+        ToggleKind kind ->
+            let
+                newChoices : Choices
+                newChoices =
+                    case ( kind, model.choices ) of
+                        ( TieredKind, Tiered _ ) ->
+                            model.choices
+
+                        ( TieredKind, Simple simple ) ->
+                            Set.toList simple
+                                |> List.map (\name -> ( name, S ))
+                                |> Dict.fromList
+                                |> Tiered
+
+                        ( SimpleKind, Simple _ ) ->
+                            model.choices
+
+                        ( SimpleKind, Tiered tiered ) ->
+                            Dict.keys tiered
+                                |> Set.fromList
+                                |> Simple
+            in
+            ( { model | choices = newChoices }
+            , Browser.Navigation.replaceUrl model.key
+                (choicesToUrl newChoices)
+            )
+
         ChooseTier name tier ->
             let
                 newChoices : Choices
@@ -440,7 +494,7 @@ update msg model =
             in
             ( { model | choices = newChoices }
             , Browser.Navigation.replaceUrl model.key
-                (selectedToUrl newChoices)
+                (choicesToUrl newChoices)
             )
 
         UrlChange url ->

@@ -5,7 +5,7 @@ import Browser
 import Browser.Navigation exposing (Key)
 import Color
 import Dict exposing (Dict)
-import Element exposing (Attribute, Color, Element, alignRight, centerY, column, el, fill, height, paddingEach, paragraph, rgb, rgb255, row, scrollbarY, text, width)
+import Element exposing (Attribute, Color, Element, alignRight, alignTop, column, el, fill, height, paddingEach, paragraph, rgb, row, scrollbarY, shrink, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -282,43 +282,102 @@ viewToggle choices =
         ]
     }
         |> Input.radioRow [ Theme.spacing ]
-        |> el [ alignRight ]
+        |> el [ alignRight, alignTop ]
 
 
 viewScore : Choices -> List Section -> Element Msg
 viewScore choices sections =
     let
-        sum : Int
-        sum =
+        sum : List Tier -> List Tier -> Int
+        sum costTiers gainTiers =
             sections
-                |> List.map sumSection
+                |> List.map (sumSection costTiers gainTiers)
                 |> List.sum
 
-        sumSection : Section -> Int
-        sumSection { powers } =
+        sumSection : List Tier -> List Tier -> Section -> Int
+        sumSection costTiers gainTiers { powers } =
             powers
                 |> List.map
                     (\{ name, cost } ->
-                        if powerTier choices name == Nothing then
-                            0
+                        case powerTier choices name of
+                            Nothing ->
+                                0
 
-                        else
-                            cost
+                            Just tier ->
+                                if
+                                    (cost > 0 && List.member tier costTiers)
+                                        || (cost < 0 && List.member tier gainTiers)
+                                then
+                                    cost
+
+                                else
+                                    0
                     )
                 |> List.sum
-
-        common : List (Attribute msg)
-        common =
-            [ Font.bold ]
     in
-    el
-        (if sum > 70 then
-            Font.color (rgb 0.7 0 0) :: common
+    case choices of
+        Tiered _ ->
+            let
+                tierLabel : Tier -> Element msg
+                tierLabel tier =
+                    ("S->" ++ tierToString tier)
+                        |> text
+                        |> el ([ Theme.padding, Font.center ] ++ tierButtonAttrs True tier)
 
-         else
-            common
-        )
-        (text <| "Score " ++ String.fromInt sum ++ "/70")
+                accTiers : List ( Tier, List Tier )
+                accTiers =
+                    [ S, A, B, C, D, F ]
+                        |> List.foldl
+                            (\tier ( acc, lacc ) ->
+                                ( tier :: acc, ( tier, tier :: acc ) :: lacc )
+                            )
+                            ( [], [] )
+                        |> Tuple.second
+                        |> List.reverse
+            in
+            { data = accTiers
+            , columns =
+                accTiers
+                    |> List.map
+                        (\( colTier, colAll ) ->
+                            { width = shrink
+                            , header = tierLabel colTier
+                            , view =
+                                \( rowTier, rowAll ) ->
+                                    let
+                                        cellSum : Int
+                                        cellSum =
+                                            sum rowAll colAll
+                                    in
+                                    el
+                                        (Font.center :: tierButtonAttrs (cellSum <= 70) rowTier)
+                                        (text <| String.fromInt cellSum)
+                            }
+                        )
+                    |> (::)
+                        { width = shrink
+                        , header = Element.none
+                        , view = \( rowTier, _ ) -> tierLabel rowTier
+                        }
+            }
+                |> Element.table []
+
+        Simple _ ->
+            let
+                s : Int
+                s =
+                    sum
+                        [ S, A, B, C, D, F ]
+                        [ S, A, B, C, D, F ]
+            in
+            el
+                (if s > 70 then
+                    [ Font.color (rgb 0.7 0 0), Font.bold ]
+
+                 else
+                    [ Font.bold ]
+                )
+                (text <| "Score " ++ String.fromInt s ++ "/70")
 
 
 viewSection : Choices -> Section -> Element Msg
@@ -339,6 +398,7 @@ viewSection choices section =
 viewPower : Choices -> Power -> Element Msg
 viewPower choices power =
     let
+        currentTier : Maybe Tier
         currentTier =
             powerTier choices power.name
 
@@ -364,8 +424,8 @@ viewPower choices power =
                 ]
                 (text requirement)
 
-        label : Element msg
-        label =
+        label : List (Element msg) -> Element msg
+        label children =
             Theme.column [ width fill ]
                 [ Theme.row [ width fill ]
                     [ el [ Font.bold ] <| text power.name
@@ -386,7 +446,11 @@ viewPower choices power =
                             :: List.intersperse
                                 (text " and ")
                                 (List.map viewRequirement power.requires)
-                , paragraph [] [ text power.description ]
+                , Theme.row [ width fill ]
+                    (paragraph [ width fill ]
+                        [ text power.description ]
+                        :: children
+                    )
                 ]
 
         common : List (Attribute msg)
@@ -398,9 +462,26 @@ viewPower choices power =
     in
     case choices of
         Tiered _ ->
-            Theme.row common <|
-                label
-                    :: List.map
+            el
+                ((Background.color <|
+                    if currentTier == Nothing then
+                        if List.isEmpty missingPrereq then
+                            rgb 0.9 0.9 1
+
+                        else
+                            rgb 0.9 0.9 0.9
+
+                    else if List.isEmpty missingPrereq then
+                        rgb 0.7 1 0.7
+
+                    else
+                        rgb 1 0.7 0.7
+                 )
+                    :: common
+                )
+            <|
+                label <|
+                    List.map
                         (\tier ->
                             let
                                 selected : Bool
@@ -408,14 +489,7 @@ viewPower choices power =
                                     Just tier == currentTier
                             in
                             Input.button
-                                [ if selected then
-                                    Background.color <| colorToColor <| tierToColor tier
-
-                                  else
-                                    Background.color <| colorToColor <| hslaMap (\hsla -> { hsla | saturation = 0.2 }) <| tierToColor tier
-                                , Theme.padding
-                                , Border.width 1
-                                ]
+                                (tierButtonAttrs selected tier)
                                 { onPress =
                                     Just
                                         (ChooseTier power.name <|
@@ -456,8 +530,20 @@ viewPower choices power =
 
                             else
                                 Nothing
-                , label = label
+                , label = label []
                 }
+
+
+tierButtonAttrs : Bool -> Tier -> List (Attribute msg)
+tierButtonAttrs selected tier =
+    [ if selected then
+        Background.color <| colorToColor <| tierToColor tier
+
+      else
+        Background.color <| colorToColor <| hslaMap (\hsla -> { hsla | saturation = 0.2 }) <| tierToColor tier
+    , Theme.padding
+    , Border.width 1
+    ]
 
 
 hslaMap : (Hsla -> Hsla) -> Color.Color -> Color.Color

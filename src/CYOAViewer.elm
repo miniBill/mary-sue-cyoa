@@ -1,5 +1,6 @@
 module CYOAViewer exposing (view)
 
+import Dict
 import Element exposing (Attribute, Element, alignRight, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
 import Element.Background as Background
 import Element.Border as Border
@@ -197,6 +198,9 @@ isRequirementSatisfied choices requirement =
         ( Simple simple, Requirement name ) ->
             Set.member name simple
 
+        ( Tiered tiered, Requirement name ) ->
+            Dict.member name tiered
+
         ( _, AtLeastXOf required names ) ->
             let
                 got : Int
@@ -206,6 +210,3 @@ isRequirementSatisfied choices requirement =
                         names
             in
             got >= required
-
-        ( Tiered _, _ ) ->
-            Debug.todo "branch '( Tiered _, _ )' not implemented"

@@ -69,7 +69,7 @@ migrate_Password_Password : Evergreen.V1.Password.Password -> Evergreen.V5.Passw
 migrate_Password_Password old =
     case old of
         Evergreen.V1.Password.Password p0 ->
-            Evergreen.V5.Password.password p0
+            Evergreen.V5.Password.Password p0
 
 
 migrate_Types_AdminMsg : Evergreen.V1.Types.AdminMsg -> Evergreen.V5.Types.AdminMsg

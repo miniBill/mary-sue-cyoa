@@ -1,4 +1,4 @@
-module Theme exposing (button, centralMessage, column, darkViolet, padding, paleViolet, palerViolet, rhythm, row, spacing, tierButtonAttrs, violet)
+module Theme exposing (button, centralMessage, column, darkViolet, padding, paleViolet, palerViolet, rhythm, row, spacing, tierButtonAttrs, violet, wrappedRow)
 
 import Color
 import Element exposing (Attribute, Color, Element, centerX, centerY, el, rgb, rgb255, text)
@@ -27,6 +27,11 @@ rhythm =
 row : List (Attribute msg) -> List (Element msg) -> Element msg
 row attrs =
     Element.row (spacing :: attrs)
+
+
+wrappedRow : List (Attribute msg) -> List (Element msg) -> Element msg
+wrappedRow attrs =
+    Element.wrappedRow (spacing :: attrs)
 
 
 column : List (Attribute msg) -> List (Element msg) -> Element msg

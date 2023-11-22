@@ -44,6 +44,10 @@ app =
                             .max-height-6969 {
                                 max-height: calc(100vh - 100px) !important;
                             }
+
+                            p {
+                                margin: 0;
+                            }
                             """
                         ]
                     , Element.layout

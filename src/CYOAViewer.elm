@@ -1,13 +1,16 @@
 module CYOAViewer exposing (view)
 
 import Dict
-import Element exposing (Attribute, Element, alignRight, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
+import Element exposing (Attribute, Element, alignRight, alignTop, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import EnglishNumbers
+import Html
 import List.Extra
+import Markdown.Parser
+import Markdown.Renderer
 import Set
 import Theme
 import Types exposing (Choices(..), Power, Requirement(..), Section, Tier(..))
@@ -38,12 +41,34 @@ viewSection chooseTier choices section =
         , Theme.padding
         , width fill
         ]
-        (paragraph [ Font.bold ] [ text section.name ]
-            :: List.map (\line -> paragraph [] [ text line ]) section.description
+        (paragraph [ Font.bold ] [ viewMarkdown section.name ]
+            :: List.map (\line -> paragraph [] [ viewMarkdown line ]) section.description
             ++ List.map
                 (viewPower chooseTier choices)
                 section.powers
         )
+
+
+viewMarkdown : String -> Element msg
+viewMarkdown source =
+    case Markdown.Parser.parse source of
+        Err _ ->
+            text source
+
+        Ok markdown ->
+            case
+                Markdown.Renderer.render
+                    Markdown.Renderer.defaultHtmlRenderer
+                    markdown
+            of
+                Err _ ->
+                    text source
+
+                Ok [ html ] ->
+                    Element.html html
+
+                Ok html ->
+                    Element.html <| Html.span [] html
 
 
 viewPower : Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
@@ -98,9 +123,9 @@ viewPower chooseTier choices power =
         label : List (Element msg) -> Element msg
         label children =
             Theme.column [ width fill ]
-                [ Theme.row [ width fill ]
-                    [ el [ Font.bold ] <| text power.label
-                    , el [ alignRight ] <|
+                [ Theme.wrappedRow [ width fill ]
+                    [ paragraph [ Font.bold ] [ viewMarkdown power.label ]
+                    , el [ alignRight, alignTop ] <|
                         text <|
                             if power.cost >= 0 then
                                 "Cost: " ++ String.fromInt power.cost
@@ -119,7 +144,7 @@ viewPower chooseTier choices power =
                                 (List.map viewRequirement power.requires)
                 , Theme.row [ width fill ]
                     (paragraph [ width fill ]
-                        [ text power.description ]
+                        [ viewMarkdown power.description ]
                         :: children
                     )
                 ]

@@ -1,4 +1,4 @@
-module Types exposing (AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Requirement(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..), powerTier, requirementToString, tierToString)
+module Types exposing (AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Requirement(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..), groupPowers, powerTier, requirementToString, tierToString)
 
 import Browser
 import Browser.Navigation exposing (Key)
@@ -208,3 +208,32 @@ requirementToString requirement =
                         )
                         alternatives
                     )
+
+
+groupPowers : List Power -> List ( Power, List Power )
+groupPowers powers =
+    powers
+        |> List.foldl
+            (\power ( lastGroup, acc ) ->
+                case lastGroup of
+                    Nothing ->
+                        ( Just ( power.id, power, [] ), acc )
+
+                    Just ( lastId, lastPower, lastGroupAcc ) ->
+                        if power.replaces == Just lastId then
+                            ( Just ( lastId, lastPower, power :: lastGroupAcc ), acc )
+
+                        else
+                            ( Just ( power.id, power, [] )
+                            , ( lastPower, List.reverse lastGroupAcc ) :: acc
+                            )
+            )
+            ( Nothing, [] )
+        |> (\( lastGroup, acc ) ->
+                case lastGroup of
+                    Nothing ->
+                        List.reverse acc
+
+                    Just ( _, lp, lg ) ->
+                        List.reverse (( lp, lg ) :: acc)
+           )

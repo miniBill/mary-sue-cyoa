@@ -44,9 +44,29 @@ viewSection chooseTier choices section =
         (paragraph [ Font.bold ] [ viewMarkdown section.name ]
             :: List.map (\line -> paragraph [] [ viewMarkdown line ]) section.description
             ++ List.map
-                (viewPower chooseTier choices)
-                section.powers
+                (viewGroup chooseTier choices)
+                (Types.groupPowers section.powers)
         )
+
+
+viewGroup : Maybe (String -> Maybe Tier -> msg) -> Choices -> ( Power, List Power ) -> Element msg
+viewGroup chooseTier choices ( power, powers ) =
+    case powers of
+        [] ->
+            viewPower [] chooseTier choices power
+
+        _ ->
+            powers
+                |> List.map (viewPower [] chooseTier choices)
+                |> Theme.wrappedRow [ width fill ]
+                |> List.singleton
+                |> (::) (viewPower [] chooseTier choices power)
+                |> Theme.column
+                    [ width fill
+                    , Border.width 1
+                    , Theme.padding
+                    , Background.color Theme.almostPaleViolet
+                    ]
 
 
 viewMarkdown : String -> Element msg
@@ -71,8 +91,8 @@ viewMarkdown source =
                     Element.html <| Html.span [] html
 
 
-viewPower : Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
-viewPower chooseTier choices power =
+viewPower : List (Attribute msg) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
+viewPower attrs chooseTier choices power =
     let
         currentTier : Maybe Tier
         currentTier =
@@ -80,7 +100,7 @@ viewPower chooseTier choices power =
 
         label : List (Element msg) -> Element msg
         label children =
-            Theme.column [ width fill ]
+            Theme.column [ width fill, alignTop ]
                 [ Theme.wrappedRow [ width fill ]
                     [ paragraph [ Font.bold ] [ viewMarkdown power.label ]
                     , el [ alignRight, alignTop ] <|
@@ -124,6 +144,7 @@ viewPower chooseTier choices power =
             , width fill
             , Background.color backgroundColor
             ]
+                ++ attrs
 
         toMsg : Maybe Tier -> Maybe msg
         toMsg tier =

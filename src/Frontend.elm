@@ -271,7 +271,7 @@ view { inner } =
                 Theme.centralMessage "Logging in..."
 
             else
-                Theme.column []
+                Theme.column [ centerX, centerY ]
                     [ Element.map Password <| Password.input login.password
                     , Input.button [ Border.width 1, Theme.padding ]
                         { label = text "Login"

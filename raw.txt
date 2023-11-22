@@ -56,11 +56,11 @@ Name: Well Endowed - Cost: 1 ☐
 You have a generous figure, whether that's a classic hourglass or more of a well-rounded look; you can choose the details. Your endowments maintain a state of perfect grace and beauty at all times, never troubling you with uncomfortable bounces or uninvited jiggles.
 
 Name: Hollow Leg - Cost: 1 ☐
-(Requires Well Endowed.)
+(Requires Well Endowed)
 Regardless of your diet and exercise habits, your body maintains the physique and silhouette you prefer. Lack of visible muscle never impairs your strength or endurance. As your preferences change, so will your body; you are no longer bound to the generous figure stipulated by Well Endowed.
 
 Name: Inner Strength - Cost: 3 ☐
-(Requires Hollow Leg.)
+(Requires Hollow Leg)
 You are implausibly, superhumanly strong, with endurance and toughness to match. You might have to strain a little to lift and carry at the same level as construction equipment, or deal with lightly scraped knuckles if you punch as hard as a battering ram.
 
 Name: Battle Angel - Cost: 1 ☐
@@ -77,11 +77,11 @@ Name: Making Ends Meet - Cost: 1 ☐
 You have enough money to sustain a comfortable lifestyle. It comes from a source you don't have to pay much attention to, like a job with almost no responsibilities, a large inheritance, or a noble title.
 
 Name: Motherlode - Cost: 2 ☐
-(Requires Making Ends Meet.)
+(Requires Making Ends Meet)
 You have enough money to sustain a fairly extravagant lifestyle. It doesn't come from anywhere, you just have it.
 
 Name: Four Star Daydream - Cost: 4 ☐
-(Requires Motherlode.)
+(Requires Motherlode)
 The answer to "can I afford that" is "yes".
 
 Name: Dragon Fairy Elf Witch - Cost: 5 ☐
@@ -215,7 +215,7 @@ Name: Popular - Cost: 3 ☐
 Wherever you go, you develop a reputation fast. The sort of people who you'd like to have as fans tend to hear about you and be impressed. You may not make an impression on mainstream society at large, but you'll develop a following among the people who best resonate with your style.
 
 Name: Famous - Cost: 3 ☐
-(Requires Popular.)
+(Requires Popular)
 Wherever you go, people really take to you. You're the subject of constant gossip and most people have heard of you before you meet them. People you've never met will get crushes on you.
 
 Name: Undiplomatic Immunity - Cost: 6 ☐

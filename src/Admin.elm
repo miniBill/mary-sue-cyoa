@@ -6,11 +6,12 @@ import Element exposing (Element, alignRight, alignTop, el, fill, height, inFron
 import Element.Background as Background
 import Element.Font as Font
 import Element.Input as Input
+import EnglishNumbers
 import Parser exposing ((|.), (|=), Parser, Problem(..))
 import Password exposing (Password)
 import Set
 import Theme
-import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Section)
+import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Requirement(..), Section)
 import Url
 import Url.Builder
 
@@ -227,7 +228,10 @@ viewPower power =
                 ""
 
             else
-                "(Requires " ++ String.join " and " power.requires ++ ")\n"
+                "(Requires "
+                    ++ String.join " and "
+                        (List.map Types.requirementToString power.requires)
+                    ++ ")\n"
     in
     "Name: "
         ++ power.label
@@ -351,11 +355,17 @@ powerParser =
                         |> List.map String.trim
                         |> List.map
                             (\s ->
-                                if String.endsWith "." s then
-                                    String.dropRight 1 s
+                                let
+                                    cut =
+                                        if String.endsWith "." s then
+                                            String.dropRight 1 s
 
-                                else
-                                    s
+                                        else
+                                            s
+                                in
+                                cut
+                                    |> Parser.run requirementParser
+                                    |> Result.withDefault (Requirement cut)
                             )
                 )
                 |. Parser.token "(Requires "
@@ -365,6 +375,34 @@ powerParser =
             ]
         |. Parser.spaces
         |= Parser.getChompedString (Parser.chompUntil "\n")
+
+
+requirementParser : Parser Requirement
+requirementParser =
+    Parser.succeed (\num reqs -> AtLeastXOf num ((List.map Requirement << String.split ", ") reqs))
+        |. Parser.symbol "at least "
+        |= numberParser
+        |. Parser.symbol " of: "
+        |= Parser.getChompedString (Parser.chompUntilEndOr ")")
+
+
+numberParser : Parser Int
+numberParser =
+    Parser.getChompedString (Parser.chompWhile Char.isAlphaNum)
+        |> Parser.andThen
+            (\s ->
+                case String.toInt s of
+                    Just i ->
+                        Parser.succeed i
+
+                    Nothing ->
+                        case EnglishNumbers.fromString s of
+                            Just i ->
+                                Parser.succeed i
+
+                            Nothing ->
+                                Parser.problem <| "\"" ++ s ++ "\" is not a valid number"
+            )
 
 
 many : Parser a -> Parser (List a)

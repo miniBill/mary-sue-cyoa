@@ -1,8 +1,9 @@
-module Types exposing (AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..), powerTier, tierToString)
+module Types exposing (AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Requirement(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..), powerTier, requirementToString, tierToString)
 
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
+import EnglishNumbers
 import Lamdera exposing (ClientId)
 import Password exposing (Password)
 import Set exposing (Set)
@@ -95,8 +96,13 @@ type alias Power =
     , id : String
     , cost : Int
     , description : String
-    , requires : List String
+    , requires : List Requirement
     }
+
+
+type Requirement
+    = Requirement String
+    | AtLeastXOf Int (List Requirement)
 
 
 type FrontendMsg
@@ -173,3 +179,31 @@ powerTier choices name =
 
             else
                 Nothing
+
+
+requirementToString : Requirement -> String
+requirementToString requirement =
+    case requirement of
+        Requirement name ->
+            name
+
+        AtLeastXOf required alternatives ->
+            "at least "
+                ++ EnglishNumbers.toString required
+                ++ " of: "
+                ++ String.join ", "
+                    (List.map
+                        (\child ->
+                            let
+                                s : String
+                                s =
+                                    requirementToString child
+                            in
+                            if String.contains "," s then
+                                "(" ++ s ++ ")"
+
+                            else
+                                s
+                        )
+                        alternatives
+                    )

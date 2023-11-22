@@ -5,8 +5,11 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
+import EnglishNumbers
+import List.Extra
+import Set
 import Theme
-import Types exposing (Choices(..), Power, Section, Tier(..))
+import Types exposing (Choices(..), Power, Requirement(..), Section, Tier(..))
 
 
 view : Maybe (String -> Maybe Tier -> msg) -> { a | choices : Choices, data : Types.CYOA } -> Element msg
@@ -49,27 +52,47 @@ viewPower chooseTier choices power =
         currentTier =
             Types.powerTier choices power.id
 
-        missingPrereq : List String
-        missingPrereq =
-            List.filter
-                (\name -> Types.powerTier choices name == Nothing)
-                power.requires
-
-        viewRequirement : String -> Element msg
+        viewRequirement : Requirement -> List (Element msg)
         viewRequirement requirement =
-            el
-                [ Font.color <|
-                    if List.member requirement missingPrereq then
-                        if currentTier == Nothing then
-                            rgb 0.6 0.4 0
+            case requirement of
+                Requirement req ->
+                    [ el
+                        [ Font.color <|
+                            if isRequirementSatisfied choices requirement then
+                                rgb 0.4 0.6 0
 
-                        else
-                            rgb 1 0 0
+                            else if currentTier == Nothing || allRequirementsSatisfied then
+                                rgb 0.6 0.4 0
 
-                    else
-                        rgb 0.4 0.6 0
-                ]
-                (text requirement)
+                            else
+                                rgb 1 0 0
+                        ]
+                        (text req)
+                    ]
+
+                AtLeastXOf required children ->
+                    text
+                        ("at least "
+                            ++ EnglishNumbers.toString required
+                            ++ " of: "
+                        )
+                        :: List.Extra.intercalate
+                            [ text ", " ]
+                            (List.map
+                                (\child ->
+                                    let
+                                        s : String
+                                        s =
+                                            Types.requirementToString child
+                                    in
+                                    if String.contains "," s then
+                                        text "(" :: viewRequirement child ++ [ text ")" ]
+
+                                    else
+                                        viewRequirement child
+                                )
+                                children
+                            )
 
         label : List (Element msg) -> Element msg
         label children =
@@ -90,8 +113,8 @@ viewPower chooseTier choices power =
                   else
                     paragraph [ Font.italic ] <|
                         text "Requires: "
-                            :: List.intersperse
-                                (text " and ")
+                            :: List.Extra.intercalate
+                                [ text " and " ]
                                 (List.map viewRequirement power.requires)
                 , Theme.row [ width fill ]
                     (paragraph [ width fill ]
@@ -105,32 +128,34 @@ viewPower chooseTier choices power =
             [ Theme.padding
             , Border.width 1
             , width fill
+            , Background.color backgroundColor
             ]
 
         toMsg : Maybe Tier -> Maybe msg
         toMsg tier =
             Maybe.map (\t -> t power.id tier) chooseTier
+
+        allRequirementsSatisfied : Bool
+        allRequirementsSatisfied =
+            List.all (isRequirementSatisfied choices) power.requires
+
+        backgroundColor =
+            if currentTier == Nothing then
+                if allRequirementsSatisfied then
+                    rgb 0.9 0.9 1
+
+                else
+                    rgb 0.9 0.9 0.9
+
+            else if allRequirementsSatisfied then
+                rgb 0.7 1 0.7
+
+            else
+                rgb 1 0.7 0.7
     in
     case choices of
         Tiered _ ->
-            el
-                ((Background.color <|
-                    if currentTier == Nothing then
-                        if List.isEmpty missingPrereq then
-                            rgb 0.9 0.9 1
-
-                        else
-                            rgb 0.9 0.9 0.9
-
-                    else if List.isEmpty missingPrereq then
-                        rgb 0.7 1 0.7
-
-                    else
-                        rgb 1 0.7 0.7
-                 )
-                    :: common
-                )
-            <|
+            el common <|
                 label <|
                     List.map
                         (\tier ->
@@ -154,23 +179,7 @@ viewPower chooseTier choices power =
                         [ S, A, B, C, D, F ]
 
         Simple _ ->
-            Input.button
-                ((Background.color <|
-                    if currentTier == Nothing then
-                        if List.isEmpty missingPrereq then
-                            rgb 0.9 0.9 1
-
-                        else
-                            rgb 0.9 0.9 0.9
-
-                    else if List.isEmpty missingPrereq then
-                        rgb 0.7 1 0.7
-
-                    else
-                        rgb 1 0.7 0.7
-                 )
-                    :: common
-                )
+            Input.button common
                 { onPress =
                     toMsg <|
                         if currentTier == Nothing then
@@ -180,3 +189,23 @@ viewPower chooseTier choices power =
                             Nothing
                 , label = label []
                 }
+
+
+isRequirementSatisfied : Choices -> Requirement -> Bool
+isRequirementSatisfied choices requirement =
+    case ( choices, requirement ) of
+        ( Simple simple, Requirement name ) ->
+            Set.member name simple
+
+        ( _, AtLeastXOf required names ) ->
+            let
+                got : Int
+                got =
+                    List.Extra.count
+                        (isRequirementSatisfied choices)
+                        names
+            in
+            got >= required
+
+        ( Tiered _, _ ) ->
+            Debug.todo "branch '( Tiered _, _ )' not implemented"

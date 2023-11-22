@@ -78,8 +78,126 @@ viewPower chooseTier choices power =
         currentTier =
             Types.powerTier choices power.id
 
-        viewRequirement : Requirement -> List (Element msg)
-        viewRequirement requirement =
+        label : List (Element msg) -> Element msg
+        label children =
+            Theme.column [ width fill ]
+                [ Theme.wrappedRow [ width fill ]
+                    [ paragraph [ Font.bold ] [ viewMarkdown power.label ]
+                    , el [ alignRight, alignTop ] <|
+                        text <|
+                            if power.cost >= 0 then
+                                "Cost: " ++ String.fromInt power.cost
+
+                            else
+                                "Grants: +" ++ String.fromInt -power.cost
+                    ]
+                , case power.replaces of
+                    Nothing ->
+                        Element.none
+
+                    Just replaces ->
+                        paragraph [ Font.italic ] <|
+                            [ text "(Replaces "
+                            , text replaces
+                            , text ")"
+                            ]
+                , if List.isEmpty power.requires then
+                    Element.none
+
+                  else
+                    paragraph [ Font.italic ] <|
+                        text "Requires: "
+                            :: List.Extra.intercalate
+                                [ text " and " ]
+                                (List.map (viewRequirement choices currentTier) power.requires)
+                , Theme.row [ width fill ]
+                    (paragraph [ width fill ]
+                        [ viewMarkdown power.description ]
+                        :: children
+                    )
+                ]
+
+        common : List (Attribute msg)
+        common =
+            [ Theme.padding
+            , Border.width 1
+            , width fill
+            , Background.color backgroundColor
+            ]
+
+        toMsg : Maybe Tier -> Maybe msg
+        toMsg tier =
+            Maybe.map (\t -> t power.id tier) chooseTier
+
+        allRequirementsSatisfied : Bool
+        allRequirementsSatisfied =
+            List.all (isRequirementSatisfied choices) power.requires
+
+        backgroundColor : Element.Color
+        backgroundColor =
+            if currentTier == Nothing then
+                if allRequirementsSatisfied then
+                    rgb 0.9 0.9 1
+
+                else
+                    rgb 0.9 0.9 0.9
+
+            else if allRequirementsSatisfied then
+                rgb 0.7 1 0.7
+
+            else
+                rgb 1 0.7 0.7
+    in
+    case choices of
+        Tiered _ ->
+            let
+                tierButtons : List (Element msg)
+                tierButtons =
+                    List.map
+                        (\tier ->
+                            let
+                                selected : Bool
+                                selected =
+                                    Just tier == currentTier
+                            in
+                            Input.button
+                                (Theme.tierButtonAttrs selected tier)
+                                { onPress =
+                                    toMsg <|
+                                        if selected then
+                                            Nothing
+
+                                        else
+                                            Just tier
+                                , label = text <| Types.tierToString tier
+                                }
+                        )
+                        [ S, A, B, C, D, F ]
+            in
+            el common <| label tierButtons
+
+        Simple _ ->
+            Input.button common
+                { onPress =
+                    toMsg <|
+                        if currentTier == Nothing then
+                            Just S
+
+                        else
+                            Nothing
+                , label = label []
+                }
+
+
+viewRequirement : Choices -> Maybe Tier -> Requirement -> List (Element msg)
+viewRequirement choices currentTier topLevelRequirement =
+    let
+        allRequirementsSatisfied : Bool
+        allRequirementsSatisfied =
+            isRequirementSatisfied choices topLevelRequirement
+
+        go : Requirement -> List (Element msg)
+        go requirement =
             case requirement of
                 Requirement req ->
                     [ el
@@ -112,119 +230,15 @@ viewPower chooseTier choices power =
                                             Types.requirementToString child
                                     in
                                     if String.contains "," s then
-                                        text "(" :: viewRequirement child ++ [ text ")" ]
+                                        text "(" :: go child ++ [ text ")" ]
 
                                     else
-                                        viewRequirement child
+                                        go child
                                 )
                                 children
                             )
-
-        label : List (Element msg) -> Element msg
-        label children =
-            Theme.column [ width fill ]
-                [ Theme.wrappedRow [ width fill ]
-                    [ paragraph [ Font.bold ] [ viewMarkdown power.label ]
-                    , el [ alignRight, alignTop ] <|
-                        text <|
-                            if power.cost >= 0 then
-                                "Cost: " ++ String.fromInt power.cost
-
-                            else
-                                "Grants: +" ++ String.fromInt -power.cost
-                    ]
-                , case power.replaces of
-                    Nothing ->
-                        Element.none
-
-                    Just replaces ->
-                        paragraph [ Font.italic ] <|
-                            [ text "(Replaces "
-                            , text replaces
-                            , text ")"
-                            ]
-                , if List.isEmpty power.requires then
-                    Element.none
-
-                  else
-                    paragraph [ Font.italic ] <|
-                        text "Requires: "
-                            :: List.Extra.intercalate
-                                [ text " and " ]
-                                (List.map viewRequirement power.requires)
-                , Theme.row [ width fill ]
-                    (paragraph [ width fill ]
-                        [ viewMarkdown power.description ]
-                        :: children
-                    )
-                ]
-
-        common : List (Attribute msg)
-        common =
-            [ Theme.padding
-            , Border.width 1
-            , width fill
-            , Background.color backgroundColor
-            ]
-
-        toMsg : Maybe Tier -> Maybe msg
-        toMsg tier =
-            Maybe.map (\t -> t power.id tier) chooseTier
-
-        allRequirementsSatisfied : Bool
-        allRequirementsSatisfied =
-            List.all (isRequirementSatisfied choices) power.requires
-
-        backgroundColor =
-            if currentTier == Nothing then
-                if allRequirementsSatisfied then
-                    rgb 0.9 0.9 1
-
-                else
-                    rgb 0.9 0.9 0.9
-
-            else if allRequirementsSatisfied then
-                rgb 0.7 1 0.7
-
-            else
-                rgb 1 0.7 0.7
     in
-    case choices of
-        Tiered _ ->
-            el common <|
-                label <|
-                    List.map
-                        (\tier ->
-                            let
-                                selected : Bool
-                                selected =
-                                    Just tier == currentTier
-                            in
-                            Input.button
-                                (Theme.tierButtonAttrs selected tier)
-                                { onPress =
-                                    toMsg <|
-                                        if selected then
-                                            Nothing
-
-                                        else
-                                            Just tier
-                                , label = text <| Types.tierToString tier
-                                }
-                        )
-                        [ S, A, B, C, D, F ]
-
-        Simple _ ->
-            Input.button common
-                { onPress =
-                    toMsg <|
-                        if currentTier == Nothing then
-                            Just S
-
-                        else
-                            Nothing
-                , label = label []
-                }
+    go topLevelRequirement
 
 
 isRequirementSatisfied : Choices -> Requirement -> Bool

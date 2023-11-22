@@ -93,15 +93,16 @@ type alias Section =
 
 type alias Power =
     { label : String
-    , id : String
+    , id : CYOAId
     , cost : Int
-    , description : String
+    , replaces : Maybe CYOAId
     , requires : List Requirement
+    , description : String
     }
 
 
 type Requirement
-    = Requirement String
+    = Requirement CYOAId
     | AtLeastXOf Int (List Requirement)
 
 

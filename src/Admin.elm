@@ -222,6 +222,15 @@ viewPower power =
                     ++ power.id
                     ++ "\n"
 
+        replacesLine : String
+        replacesLine =
+            case power.replaces of
+                Nothing ->
+                    ""
+
+                Just replaces ->
+                    "(Replaces " ++ replaces ++ ")\n"
+
         requiresLine : String
         requiresLine =
             if List.isEmpty power.requires then
@@ -239,6 +248,7 @@ viewPower power =
         ++ costString
         ++ " ☐\n"
         ++ idLine
+        ++ replacesLine
         ++ requiresLine
         ++ power.description
 

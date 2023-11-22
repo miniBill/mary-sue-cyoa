@@ -46,10 +46,11 @@ nonNameParser =
 powerParser : Parser Power
 powerParser =
     Parser.succeed
-        (\label cost maybeId requires description ->
+        (\label cost maybeId replaces requires description ->
             { label = label
             , id = Maybe.withDefault label maybeId
             , cost = cost
+            , replaces = replaces
             , requires = requires
             , description = description
             }
@@ -71,6 +72,14 @@ powerParser =
             [ Parser.succeed Just
                 |. Parser.token "Id: "
                 |= Parser.getChompedString (Parser.chompUntil "\n")
+            , Parser.succeed Nothing
+            ]
+        |. Parser.spaces
+        |= Parser.oneOf
+            [ Parser.succeed Just
+                |. Parser.symbol "(Replaces "
+                |= Parser.getChompedString (Parser.chompUntil ")")
+                |. Parser.token ")"
             , Parser.succeed Nothing
             ]
         |. Parser.spaces

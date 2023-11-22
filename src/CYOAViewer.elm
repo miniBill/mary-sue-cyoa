@@ -133,6 +133,16 @@ viewPower chooseTier choices power =
                             else
                                 "Grants: +" ++ String.fromInt -power.cost
                     ]
+                , case power.replaces of
+                    Nothing ->
+                        Element.none
+
+                    Just replaces ->
+                        paragraph [ Font.italic ] <|
+                            [ text "(Replaces "
+                            , text replaces
+                            , text ")"
+                            ]
                 , if List.isEmpty power.requires then
                     Element.none
 

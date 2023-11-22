@@ -2,6 +2,7 @@ module Admin exposing (view)
 
 import Dict exposing (Dict)
 import Element exposing (Element, alignRight, el, fill, height, inFront, newTabLink, rgb, text, width)
+import Element.Background as Background
 import Element.Font as Font
 import Element.Input as Input
 import Parser exposing ((|.), (|=), Parser, Problem(..))
@@ -36,7 +37,9 @@ view admin =
 
 viewCreating : CYOAId -> List (Element AdminMsg)
 viewCreating cyoaId =
-    [ Input.text []
+    [ Input.text
+        [ Background.color Theme.palerViolet
+        ]
         { label = Input.labelAbove [] <| text "Id"
         , text = cyoaId
         , placeholder = Just <| Input.placeholder [] <| text "bestest-notebook-ever"
@@ -74,7 +77,10 @@ viewEditing cyoaId old current =
         ]
         [ el [ Font.bold ] <| text <| "Editing " ++ cyoaId
         ]
-    , Input.multiline [ width fill ]
+    , Input.multiline
+        [ width fill
+        , Background.color Theme.palerViolet
+        ]
         { label = Input.labelAbove [] <| text "Content"
         , text = current
         , onChange = UpdatePrepare cyoaId old
@@ -105,7 +111,10 @@ viewAdminList cyoas =
                         , onPress = Just <| UpdatePrepare cyoaId raw raw
                         }
                     , text <| "Link:"
-                    , newTabLink [ Font.color <| rgb 0.2 0.5 0.2 ]
+                    , newTabLink
+                        [ Font.underline
+                        , Font.color Theme.violet
+                        ]
                         { url = url
                         , label = text <| "https://mary-sue.lamdera.app" ++ url
                         }

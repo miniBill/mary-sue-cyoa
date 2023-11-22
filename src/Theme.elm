@@ -1,6 +1,6 @@
-module Theme exposing (button, centralMessage, column, padding, row, rythm, spacing)
+module Theme exposing (button, centralMessage, column, darkViolet, padding, paleViolet, palerViolet, row, rythm, spacing, violet)
 
-import Element exposing (Attribute, Element, centerX, centerY, el, rgb, text)
+import Element exposing (Attribute, Color, Element, centerX, centerY, el, rgb, rgb255, text)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -54,7 +54,9 @@ button attrs config =
         el
             (padding
                 :: Border.width 1
-                :: Background.color (rgb 0.7 0.7 0.7)
+                :: Border.color (rgb 0 0 0)
+                :: Background.color palerViolet
+                :: Font.color darkViolet
                 :: attrs
             )
             config.label
@@ -63,7 +65,29 @@ button attrs config =
         Input.button
             (padding
                 :: Border.width 1
-                :: Background.color (rgb 0.8 0.9 0.8)
+                :: Border.color (rgb 0 0 0)
+                :: Background.color violet
+                :: Font.color (rgb 1 1 1)
                 :: attrs
             )
             config
+
+
+darkViolet : Color
+darkViolet =
+    rgb255 0x43 0x01 0x83
+
+
+violet : Color
+violet =
+    rgb255 0x80 0x40 0xBF
+
+
+palerViolet : Color
+palerViolet =
+    Element.rgb255 0xF6 0xEA 0xFE
+
+
+paleViolet : Color
+paleViolet =
+    Element.rgb255 0xF3 0xE3 0xFE

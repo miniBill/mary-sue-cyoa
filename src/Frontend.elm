@@ -37,7 +37,13 @@ app =
             \model ->
                 { title = "Mary Sue CYOA"
                 , body =
-                    [ Element.layout [ width fill, height fill ] <|
+                    [ Element.layout
+                        [ width fill
+                        , height fill
+                        , Font.color Theme.darkViolet
+                        , Background.color Theme.paleViolet
+                        ]
+                      <|
                         view model
                     ]
                 }
@@ -230,6 +236,7 @@ view { inner } =
                 [ centerX
                 , centerY
                 , Font.size 48
+                , Font.underline
                 ]
                 { url = "https://en.wikipedia.org/wiki/Mary_Sue"
                 , label = text "Mary Sue"

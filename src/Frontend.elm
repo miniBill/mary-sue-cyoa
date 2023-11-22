@@ -1,93 +1,43 @@
-module Main exposing (Choices, Flags, Model, Msg, Power, Section, Tier, WebData, main)
+module Frontend exposing (app)
 
-import AppUrl
+import Admin
+import AppUrl exposing (AppUrl)
 import Browser
 import Browser.Navigation exposing (Key)
 import Color
-import Dict exposing (Dict)
-import Element exposing (Attribute, Color, Element, alignRight, alignTop, column, el, fill, height, paddingEach, paragraph, rgb, row, scrollbarY, shrink, text, width)
+import Dict
+import Element exposing (Attribute, Color, Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, link, paddingEach, paragraph, rgb, row, scrollbarY, shrink, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
-import Http
+import Lamdera exposing (UrlRequest)
 import Maybe.Extra
-import Parser exposing ((|.), (|=), Parser)
-import Set exposing (Set)
+import Password exposing (Password)
+import Set
 import Theme
+import Types exposing (AdminMsg(..), CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..))
 import Url exposing (Url)
 import Url.Builder
 
 
-type alias Model =
-    { key : Key
-    , choices : Choices
-    , data : WebData (List Section)
+app :
+    { init : Url -> Key -> ( FrontendModel, Cmd FrontendMsg )
+    , view : FrontendModel -> Browser.Document FrontendMsg
+    , update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
+    , updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
+    , subscriptions : FrontendModel -> Sub FrontendMsg
+    , onUrlRequest : UrlRequest -> FrontendMsg
+    , onUrlChange : Url -> FrontendMsg
     }
-
-
-type Choices
-    = Tiered (Dict String Tier)
-    | Simple (Set String)
-
-
-type Tier
-    = S
-    | A
-    | B
-    | C
-    | D
-    | F
-
-
-type WebData a
-    = Loading
-    | HttpError Http.Error
-    | ParseError String
-    | Success a
-
-
-type alias Section =
-    { name : String
-    , description : List String
-    , powers : List Power
-    }
-
-
-type alias Power =
-    { name : String
-    , cost : Int
-    , description : String
-    , requires : List String
-    }
-
-
-type Msg
-    = ChooseTier String (Maybe Tier)
-    | GotRaw (Result Http.Error String)
-    | UrlChange Url
-    | UrlRequest Browser.UrlRequest
-    | ToggleKind Kind
-
-
-type Kind
-    = TieredKind
-    | SimpleKind
-
-
-type alias Flags =
-    {}
-
-
-main : Program Flags Model Msg
-main =
-    Browser.application
+app =
+    Lamdera.frontend
         { init = init
         , view =
             \model ->
                 { title = "Mary Sue CYOA"
                 , body =
-                    [ Element.layout [] <|
+                    [ Element.layout [ width fill, height fill ] <|
                         view model
                     ]
                 }
@@ -95,33 +45,251 @@ main =
         , subscriptions = subscriptions
         , onUrlChange = UrlChange
         , onUrlRequest = UrlRequest
+        , updateFromBackend = updateFromBackend
         }
 
 
-init : Flags -> Url -> Key -> ( Model, Cmd Msg )
-init _ url key =
-    ( initialModel url key
-    , Http.get
-        { url = "./raw.txt"
-        , expect = Http.expectString GotRaw
-        }
-    )
+updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
+updateFromBackend msg ({ inner } as model) =
+    let
+        newInner : InnerModel
+        newInner =
+            case msg of
+                TFCYOAMissing cyoaId ->
+                    NotFound cyoaId
+
+                TFRenamedCYOA from to ->
+                    case inner of
+                        Admin admin ->
+                            case Dict.get from admin.cyoas of
+                                Nothing ->
+                                    inner
+
+                                Just cyoa ->
+                                    Admin
+                                        { admin
+                                            | cyoas =
+                                                admin.cyoas
+                                                    |> Dict.remove from
+                                                    |> Dict.insert to cyoa
+                                        }
+
+                        _ ->
+                            inner
+
+                TFDeletedCYOA cyoaId ->
+                    case inner of
+                        Loading id _ ->
+                            if id == cyoaId then
+                                Homepage
+
+                            else
+                                inner
+
+                        Admin admin ->
+                            Admin
+                                { admin
+                                    | cyoas =
+                                        Dict.remove cyoaId admin.cyoas
+                                    , inner =
+                                        case admin.inner of
+                                            Deleting id ->
+                                                if id == cyoaId then
+                                                    Listing
+
+                                                else
+                                                    admin.inner
+
+                                            Editing id _ _ ->
+                                                if id == cyoaId then
+                                                    Listing
+
+                                                else
+                                                    admin.inner
+
+                                            Renaming from _ ->
+                                                if from == cyoaId then
+                                                    Listing
+
+                                                else
+                                                    admin.inner
+
+                                            _ ->
+                                                admin.inner
+                                }
+
+                        _ ->
+                            inner
+
+                TFGotCYOA cyoaId cyoa ->
+                    case inner of
+                        Loading id choices ->
+                            if id == cyoaId then
+                                Loaded
+                                    { cyoaId = cyoaId
+                                    , choices = choices
+                                    , data = cyoa
+                                    }
+
+                            else
+                                inner
+
+                        Loaded loaded ->
+                            if loaded.cyoaId == cyoaId then
+                                Loaded { loaded | data = cyoa }
+
+                            else
+                                inner
+
+                        Admin admin ->
+                            Admin
+                                { admin
+                                    | cyoas = Dict.insert cyoaId cyoa admin.cyoas
+                                }
+
+                        _ ->
+                            inner
+
+                TFAdmin cyoas ->
+                    case inner of
+                        Login { password } ->
+                            Admin
+                                { password = password
+                                , cyoas = cyoas
+                                , inner = Listing
+                                }
+
+                        _ ->
+                            inner
+    in
+    ( { model | inner = newInner }, Cmd.none )
 
 
-initialModel : Url -> Key -> Model
-initialModel url key =
-    { key = key
-    , choices = urlToChoices url
-    , data = Loading
-    }
+init : Url -> Key -> ( FrontendModel, Cmd FrontendMsg )
+init url key =
+    let
+        appUrl : AppUrl
+        appUrl =
+            AppUrl.fromUrl url
+    in
+    case appUrl.path of
+        [] ->
+            ( { key = key
+              , inner = Homepage
+              }
+            , Cmd.none
+            )
+
+        [ "admin" ] ->
+            let
+                ( inner, cmd ) =
+                    case Dict.get "key" appUrl.queryParameters of
+                        Just [ passwordString ] ->
+                            let
+                                password : Password
+                                password =
+                                    Password.password passwordString
+                            in
+                            ( { password = password
+                              , loggingIn = True
+                              }
+                            , Lamdera.sendToBackend <| TBAuthenticated password TBLogin
+                            )
+
+                        _ ->
+                            ( { password = Password.password ""
+                              , loggingIn = False
+                              }
+                            , Cmd.none
+                            )
+            in
+            ( { key = key
+              , inner = Login inner
+              }
+            , cmd
+            )
+
+        _ ->
+            let
+                cyoaId : CYOAId
+                cyoaId =
+                    String.join "/" appUrl.path
+            in
+            ( { key = key
+              , inner = Loading cyoaId <| urlToChoices appUrl
+              }
+            , Lamdera.sendToBackend <| TBGetCYOA cyoaId
+            )
 
 
-urlToChoices : Url -> Choices
-urlToChoices url =
+view : FrontendModel -> Element FrontendMsg
+view { inner } =
+    case inner of
+        Homepage ->
+            link
+                [ centerX
+                , centerY
+                , Font.size 48
+                ]
+                { url = "https://en.wikipedia.org/wiki/Mary_Sue"
+                , label = text "Mary Sue"
+                }
+
+        Loading cyoaId _ ->
+            Theme.centralMessage <| "Loading " ++ cyoaId ++ "..."
+
+        NotFound _ ->
+            image [ centerX, centerY ]
+                { src = "/404.png"
+                , description = "CYOA not found"
+                }
+
+        Loaded innerModel ->
+            column [ height fill ]
+                [ row [ Theme.padding, width fill ]
+                    [ viewScore innerModel.choices innerModel.data
+                    , viewToggle innerModel.choices
+                    ]
+                , Theme.column
+                    [ scrollbarY
+                    , paddingEach
+                        { top = 0
+                        , left = Theme.rythm
+                        , right = Theme.rythm
+                        , bottom = Theme.rythm
+                        }
+                    , height fill
+                    ]
+                    (List.map
+                        (viewSection innerModel.choices)
+                        innerModel.data
+                    )
+                ]
+
+        Login login ->
+            if login.loggingIn then
+                Theme.centralMessage "Logging in..."
+
+            else
+                Theme.column []
+                    [ Element.map Password <| Password.input login.password
+                    , Input.button [ Border.width 1, Theme.padding ]
+                        { label = text "Login"
+                        , onPress = Just TryLogin
+                        }
+                    ]
+
+        Admin admin ->
+            Element.map AdminMsg <|
+                Admin.view admin
+
+
+urlToChoices : AppUrl -> Choices
+urlToChoices appUrl =
     let
         list : List ( String, List String )
         list =
-            (AppUrl.fromUrl url).queryParameters
+            appUrl.queryParameters
                 |> Dict.toList
 
         tiered : Maybe (List ( String, Tier ))
@@ -230,42 +398,7 @@ tierToColor tier =
             Color.rgb255 0xAC 0x00 0x00
 
 
-view : Model -> Element Msg
-view model =
-    case model.data of
-        Loading ->
-            text "Loading..."
-
-        HttpError e ->
-            text <| Debug.toString e
-
-        ParseError e ->
-            text <| Debug.toString e
-
-        Success sections ->
-            column [ height fill ]
-                [ row [ Theme.padding, width fill ]
-                    [ viewScore model.choices sections
-                    , viewToggle model.choices
-                    ]
-                , Theme.column
-                    [ scrollbarY
-                    , paddingEach
-                        { top = 0
-                        , left = Theme.rythm
-                        , right = Theme.rythm
-                        , bottom = Theme.rythm
-                        }
-                    , height fill
-                    ]
-                    (List.map
-                        (viewSection model.choices)
-                        sections
-                    )
-                ]
-
-
-viewToggle : Choices -> Element Msg
+viewToggle : Choices -> Element FrontendMsg
 viewToggle choices =
     { onChange = ToggleKind
     , label = Input.labelHidden "Kind"
@@ -285,7 +418,7 @@ viewToggle choices =
         |> el [ alignRight, alignTop ]
 
 
-viewScore : Choices -> List Section -> Element Msg
+viewScore : Choices -> List Section -> Element FrontendMsg
 viewScore choices sections =
     let
         sum : List Tier -> List Tier -> Int
@@ -298,8 +431,8 @@ viewScore choices sections =
         sumSection costTiers gainTiers { powers } =
             powers
                 |> List.map
-                    (\{ name, cost } ->
-                        case powerTier choices name of
+                    (\{ id, cost } ->
+                        case powerTier choices id of
                             Nothing ->
                                 0
 
@@ -380,7 +513,7 @@ viewScore choices sections =
                 (text <| "Score " ++ String.fromInt s ++ "/70")
 
 
-viewSection : Choices -> Section -> Element Msg
+viewSection : Choices -> Section -> Element FrontendMsg
 viewSection choices section =
     Theme.column
         [ Border.width 1
@@ -395,12 +528,12 @@ viewSection choices section =
         )
 
 
-viewPower : Choices -> Power -> Element Msg
+viewPower : Choices -> Power -> Element FrontendMsg
 viewPower choices power =
     let
         currentTier : Maybe Tier
         currentTier =
-            powerTier choices power.name
+            powerTier choices power.id
 
         missingPrereq : List String
         missingPrereq =
@@ -428,7 +561,7 @@ viewPower choices power =
         label children =
             Theme.column [ width fill ]
                 [ Theme.row [ width fill ]
-                    [ el [ Font.bold ] <| text power.name
+                    [ el [ Font.bold ] <| text power.label
                     , el [ alignRight ] <|
                         text <|
                             if power.cost >= 0 then
@@ -492,7 +625,7 @@ viewPower choices power =
                                 (tierButtonAttrs selected tier)
                                 { onPress =
                                     Just
-                                        (ChooseTier power.name <|
+                                        (ChooseTier power.id <|
                                             if selected then
                                                 Nothing
 
@@ -524,7 +657,7 @@ viewPower choices power =
                 )
                 { onPress =
                     Just <|
-                        ChooseTier power.name <|
+                        ChooseTier power.id <|
                             if currentTier == Nothing then
                                 Just S
 
@@ -586,31 +719,16 @@ powerTier choices name =
                 Nothing
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
+update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 update msg model =
-    case msg of
-        GotRaw (Err e) ->
-            ( { model | data = HttpError e }, Cmd.none )
-
-        GotRaw (Ok raw) ->
-            case Parser.run mainParser raw of
-                Err e ->
-                    ( { model | data = ParseError <| errorToString e }, Cmd.none )
-
-                Ok newModel ->
-                    ( { model
-                        | data = Success newModel
-                      }
-                    , Cmd.none
-                    )
-
-        ToggleKind kind ->
+    case ( msg, model.inner ) of
+        ( ToggleKind kind, Loaded inner ) ->
             let
                 newChoices : Choices
                 newChoices =
-                    case ( kind, model.choices ) of
+                    case ( kind, inner.choices ) of
                         ( TieredKind, Tiered _ ) ->
-                            model.choices
+                            inner.choices
 
                         ( TieredKind, Simple simple ) ->
                             Set.toList simple
@@ -619,23 +737,26 @@ update msg model =
                                 |> Tiered
 
                         ( SimpleKind, Simple _ ) ->
-                            model.choices
+                            inner.choices
 
                         ( SimpleKind, Tiered tiered ) ->
                             Dict.keys tiered
                                 |> Set.fromList
                                 |> Simple
             in
-            ( { model | choices = newChoices }
+            ( { model | inner = Loaded { inner | choices = newChoices } }
             , Browser.Navigation.replaceUrl model.key
                 (choicesToUrl newChoices)
             )
 
-        ChooseTier name tier ->
+        ( ToggleKind _, _ ) ->
+            ( model, Cmd.none )
+
+        ( ChooseTier name tier, Loaded inner ) ->
             let
                 newChoices : Choices
                 newChoices =
-                    case ( tier, model.choices ) of
+                    case ( tier, inner.choices ) of
                         ( Just t, Tiered tiered ) ->
                             Tiered <| Dict.insert name t tiered
 
@@ -648,132 +769,100 @@ update msg model =
                         ( Nothing, Simple simple ) ->
                             Simple <| Set.remove name simple
             in
-            ( { model | choices = newChoices }
+            ( { model | inner = Loaded { inner | choices = newChoices } }
             , Browser.Navigation.replaceUrl model.key
                 (choicesToUrl newChoices)
             )
 
-        UrlChange url ->
-            ( { model | choices = urlToChoices url }, Cmd.none )
+        ( ChooseTier _ _, _ ) ->
+            ( model, Cmd.none )
 
-        UrlRequest (Browser.External ext) ->
+        ( UrlChange url, Loaded inner ) ->
+            ( { model
+                | inner =
+                    Loaded
+                        { inner
+                            | choices =
+                                urlToChoices (AppUrl.fromUrl url)
+                        }
+              }
+            , Cmd.none
+            )
+
+        ( UrlChange _, _ ) ->
+            ( model, Cmd.none )
+
+        ( UrlRequest (Browser.External ext), _ ) ->
             ( model, Browser.Navigation.load ext )
 
-        UrlRequest (Browser.Internal url) ->
-            ( { model | choices = urlToChoices url }
+        ( UrlRequest (Browser.Internal url), _ ) ->
+            ( model
             , Browser.Navigation.pushUrl model.key (Url.toString url)
             )
 
+        ( Password password, Login login ) ->
+            ( { model | inner = Login { login | password = password } }, Cmd.none )
 
-errorToString : List Parser.DeadEnd -> String
-errorToString deadEnds =
-    String.join "\n" <|
-        "Error:"
-            :: List.map deadEndToString deadEnds
+        ( Password _, _ ) ->
+            ( model, Cmd.none )
 
-
-deadEndToString : Parser.DeadEnd -> String
-deadEndToString deadEnd =
-    Debug.toString deadEnd
-
-
-mainParser : Parser (List Section)
-mainParser =
-    Parser.succeed identity
-        |= many parseSection
-        |. Parser.end
-
-
-parseSection : Parser Section
-parseSection =
-    Parser.succeed
-        (\name description powers ->
-            { name = name
-            , description = description
-            , powers = powers
-            }
-        )
-        |= Parser.getChompedString (Parser.chompUntil "\n")
-        |. Parser.spaces
-        |= many nonNameParser
-        |. Parser.spaces
-        |= many powerParser
-
-
-nonNameParser : Parser String
-nonNameParser =
-    Parser.chompUntil "\n"
-        |> Parser.getChompedString
-        |> Parser.backtrackable
-        |> Parser.andThen
-            (\s ->
-                if String.startsWith "Name: " s then
-                    Parser.problem "Starts with name"
-
-                else
-                    Parser.succeed s
+        ( TryLogin, Login login ) ->
+            ( { model | inner = Login { login | loggingIn = True } }
+            , Lamdera.sendToBackend <| TBAuthenticated login.password TBLogin
             )
 
+        ( TryLogin, _ ) ->
+            ( model, Cmd.none )
 
-powerParser : Parser Power
-powerParser =
-    Parser.succeed
-        (\name cost requires description ->
-            { name = name
-            , cost = cost
-            , requires = requires
-            , description = description
-            }
-        )
-        |. Parser.token "Name: "
-        |= Parser.getChompedString (Parser.chompUntil " - ")
-        |. Parser.token " - "
-        |= Parser.oneOf
-            [ Parser.succeed identity
-                |. Parser.token "Cost: "
-                |= Parser.int
-            , Parser.succeed negate
-                |. Parser.token "Grants: +"
-                |= Parser.int
-            ]
-        |. Parser.token " ☐"
-        |. Parser.spaces
-        |= Parser.oneOf
-            [ Parser.succeed
-                (\req ->
-                    req
-                        |> String.split " and "
-                        |> List.map String.trim
-                        |> List.map
-                            (\s ->
-                                if String.endsWith "." s then
-                                    String.dropRight 1 s
+        ( AdminMsg innerMsg, Admin admin ) ->
+            let
+                ( newInner, maybeAuthenticatedMsg ) =
+                    adminUpdate innerMsg
+            in
+            ( { model | inner = Admin { admin | inner = newInner } }
+            , case maybeAuthenticatedMsg of
+                Nothing ->
+                    Cmd.none
 
-                                else
-                                    s
-                            )
-                )
-                |. Parser.token "(Requires "
-                |= Parser.getChompedString (Parser.chompUntil ")")
-                |. Parser.token ")"
-            , Parser.succeed []
-            ]
-        |. Parser.spaces
-        |= Parser.getChompedString (Parser.chompUntil "\n")
+                Just authenticatedMsg ->
+                    Lamdera.sendToBackend <| TBAuthenticated admin.password authenticatedMsg
+            )
+
+        ( AdminMsg _, _ ) ->
+            ( model, Cmd.none )
 
 
-many : Parser a -> Parser (List a)
-many parser =
-    Parser.sequence
-        { start = ""
-        , end = ""
-        , trailing = Parser.Optional
-        , separator = ""
-        , spaces = Parser.spaces
-        , item = parser
-        }
+adminUpdate : AdminMsg -> ( InnerAdminModel, Maybe TBAuthenticated )
+adminUpdate msg =
+    case msg of
+        CreatePrepare cyoaId ->
+            ( Creating cyoaId, Nothing )
+
+        CreateDo cyoaId ->
+            ( Listing, Just <| TBCreateCYOA cyoaId )
+
+        UpdatePrepare cyoaId old current ->
+            ( Editing cyoaId old current, Nothing )
+
+        UpdateDo cyoaId cyoa ->
+            ( Listing, Just <| TBUpdateCYOA cyoaId cyoa )
+
+        RenamePrepare from to ->
+            ( Renaming from to, Nothing )
+
+        RenameDo from to ->
+            ( Listing, Just <| TBRenameCYOA from to )
+
+        DeletePrepare cyoaId ->
+            ( Deleting cyoaId, Nothing )
+
+        DeleteDo cyoaId ->
+            ( Listing, Just <| TBDeleteCYOA cyoaId )
+
+        List ->
+            ( Listing, Nothing )
 
 
-subscriptions : Model -> Sub Msg
+subscriptions : FrontendModel -> Sub FrontendMsg
 subscriptions _ =
     Sub.none

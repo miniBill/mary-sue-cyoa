@@ -306,6 +306,7 @@ urlToChoices appUrl =
         Just ((_ :: _) as t) ->
             t
                 |> Dict.fromList
+                |> Dict.remove tieredKey
                 |> Tiered
 
         _ ->
@@ -344,7 +345,12 @@ choicesToUrl : CYOAId -> Choices -> String
 choicesToUrl cyoaid selected =
     case selected of
         Tiered tiers ->
-            tiers
+            (if Dict.isEmpty tiers then
+                Dict.singleton tieredKey S
+
+             else
+                tiers
+            )
                 |> Dict.toList
                 |> List.map (\( key, value ) -> Url.Builder.string key <| Types.tierToString value)
                 |> Url.Builder.absolute (String.split "/" cyoaid)
@@ -354,6 +360,11 @@ choicesToUrl cyoaid selected =
                 |> Set.toList
                 |> List.map (\key -> Url.Builder.string key "Y")
                 |> Url.Builder.absolute (String.split "/" cyoaid)
+
+
+tieredKey : String
+tieredKey =
+    "__tiered__"
 
 
 viewToggle : Choices -> Element FrontendMsg

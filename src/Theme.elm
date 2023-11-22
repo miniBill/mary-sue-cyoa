@@ -1,24 +1,26 @@
-module Theme exposing (button, centralMessage, column, darkViolet, padding, paleViolet, palerViolet, row, rythm, spacing, violet)
+module Theme exposing (button, centralMessage, column, darkViolet, padding, paleViolet, palerViolet, rhythm, row, spacing, tierButtonAttrs, violet)
 
+import Color
 import Element exposing (Attribute, Color, Element, centerX, centerY, el, rgb, rgb255, text)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
+import Types exposing (Tier(..))
 
 
 padding : Attribute msg
 padding =
-    Element.padding rythm
+    Element.padding rhythm
 
 
 spacing : Attribute msg
 spacing =
-    Element.spacing rythm
+    Element.spacing rhythm
 
 
-rythm : number
-rythm =
+rhythm : number
+rhythm =
     10
 
 
@@ -91,3 +93,63 @@ palerViolet =
 paleViolet : Color
 paleViolet =
     Element.rgb255 0xF3 0xE3 0xFE
+
+
+tierButtonAttrs : Bool -> Tier -> List (Attribute msg)
+tierButtonAttrs selected tier =
+    [ if selected then
+        Background.color <| colorToColor <| tierToColor tier
+
+      else
+        Background.color <| colorToColor <| hslaMap (\hsla -> { hsla | saturation = 0.2 }) <| tierToColor tier
+    , padding
+    , Border.width 1
+    ]
+
+
+hslaMap : (Hsla -> Hsla) -> Color.Color -> Color.Color
+hslaMap f color =
+    color
+        |> Color.toHsla
+        |> f
+        |> Color.fromHsla
+
+
+type alias Hsla =
+    { alpha : Float
+    , lightness : Float
+    , hue : Float
+    , saturation : Float
+    }
+
+
+colorToColor : Color.Color -> Color
+colorToColor color =
+    let
+        rgba : { red : Float, green : Float, blue : Float, alpha : Float }
+        rgba =
+            Color.toRgba color
+    in
+    Element.rgba rgba.red rgba.green rgba.blue rgba.alpha
+
+
+tierToColor : Tier -> Color.Color
+tierToColor tier =
+    case tier of
+        S ->
+            Color.rgb255 0x02 0xAF 0xF0
+
+        A ->
+            Color.rgb255 0x00 0xAE 0x50
+
+        B ->
+            Color.rgb255 0x92 0xCF 0x50
+
+        C ->
+            Color.rgb255 0xFE 0xD9 0x66
+
+        D ->
+            Color.rgb255 0xF7 0x86 0x1C
+
+        F ->
+            Color.rgb255 0xAC 0x00 0x00

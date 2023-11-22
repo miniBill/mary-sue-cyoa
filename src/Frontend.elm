@@ -4,19 +4,20 @@ import Admin
 import AppUrl exposing (AppUrl)
 import Browser
 import Browser.Navigation exposing (Key)
-import Color
+import CYOAViewer
 import Dict
-import Element exposing (Attribute, Color, Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, link, paddingEach, paragraph, rgb, row, scrollbarY, shrink, text, width)
+import Element exposing (Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, link, rgb, row, shrink, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
+import Html
 import Lamdera exposing (UrlRequest)
 import Maybe.Extra
 import Password exposing (Password)
 import Set
 import Theme
-import Types exposing (AdminMsg(..), CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..))
+import Types exposing (AdminMsg(..), CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..))
 import Url exposing (Url)
 import Url.Builder
 
@@ -37,14 +38,21 @@ app =
             \model ->
                 { title = "Mary Sue CYOA"
                 , body =
-                    [ Element.layout
+                    [ Html.node "style"
+                        []
+                        [ Html.text """
+                            .max-height-6969 {
+                                max-height: calc(100vh - 100px) !important;
+                            }
+                            """
+                        ]
+                    , Element.layout
                         [ width fill
                         , height fill
                         , Font.color Theme.darkViolet
                         , Background.color Theme.paleViolet
                         ]
-                      <|
-                        view model
+                        (view model)
                     ]
                 }
         , update = update
@@ -106,7 +114,7 @@ updateFromBackend msg ({ inner } as model) =
                                                 else
                                                     admin.inner
 
-                                            Editing id _ _ ->
+                                            Editing id _ _ _ ->
                                                 if id == cyoaId then
                                                     Listing
 
@@ -257,20 +265,7 @@ view { inner } =
                     [ viewScore innerModel.choices innerModel.data
                     , viewToggle innerModel.choices
                     ]
-                , Theme.column
-                    [ scrollbarY
-                    , paddingEach
-                        { top = 0
-                        , left = Theme.rythm
-                        , right = Theme.rythm
-                        , bottom = Theme.rythm
-                        }
-                    , height fill
-                    ]
-                    (List.map
-                        (viewSection innerModel.choices)
-                        innerModel.data
-                    )
+                , CYOAViewer.view (Just ChooseTier) innerModel
                 ]
 
         Login login ->
@@ -351,7 +346,7 @@ choicesToUrl cyoaid selected =
         Tiered tiers ->
             tiers
                 |> Dict.toList
-                |> List.map (\( key, value ) -> Url.Builder.string key <| tierToString value)
+                |> List.map (\( key, value ) -> Url.Builder.string key <| Types.tierToString value)
                 |> Url.Builder.absolute (String.split "/" cyoaid)
 
         Simple choices ->
@@ -359,50 +354,6 @@ choicesToUrl cyoaid selected =
                 |> Set.toList
                 |> List.map (\key -> Url.Builder.string key "Y")
                 |> Url.Builder.absolute (String.split "/" cyoaid)
-
-
-tierToString : Tier -> String
-tierToString tier =
-    case tier of
-        S ->
-            "S"
-
-        A ->
-            "A"
-
-        B ->
-            "B"
-
-        C ->
-            "C"
-
-        D ->
-            "D"
-
-        F ->
-            "F"
-
-
-tierToColor : Tier -> Color.Color
-tierToColor tier =
-    case tier of
-        S ->
-            Color.rgb255 0x02 0xAF 0xF0
-
-        A ->
-            Color.rgb255 0x00 0xAE 0x50
-
-        B ->
-            Color.rgb255 0x92 0xCF 0x50
-
-        C ->
-            Color.rgb255 0xFE 0xD9 0x66
-
-        D ->
-            Color.rgb255 0xF7 0x86 0x1C
-
-        F ->
-            Color.rgb255 0xAC 0x00 0x00
 
 
 viewToggle : Choices -> Element FrontendMsg
@@ -439,7 +390,7 @@ viewScore choices sections =
             powers
                 |> List.map
                     (\{ id, cost } ->
-                        case powerTier choices id of
+                        case Types.powerTier choices id of
                             Nothing ->
                                 0
 
@@ -460,9 +411,9 @@ viewScore choices sections =
             let
                 tierLabel : Tier -> Element msg
                 tierLabel tier =
-                    ("S->" ++ tierToString tier)
+                    ("S->" ++ Types.tierToString tier)
                         |> text
-                        |> el ([ Theme.padding, Font.center ] ++ tierButtonAttrs True tier)
+                        |> el ([ Theme.padding, Font.center ] ++ Theme.tierButtonAttrs True tier)
 
                 accTiers : List ( Tier, List Tier )
                 accTiers =
@@ -490,7 +441,7 @@ viewScore choices sections =
                                             sum rowAll colAll
                                     in
                                     el
-                                        (Font.center :: tierButtonAttrs (cellSum <= 70) rowTier)
+                                        (Font.center :: Theme.tierButtonAttrs (cellSum <= 70) rowTier)
                                         (text <| String.fromInt cellSum)
                             }
                         )
@@ -518,212 +469,6 @@ viewScore choices sections =
                     [ Font.bold ]
                 )
                 (text <| "Score " ++ String.fromInt s ++ "/70")
-
-
-viewSection : Choices -> Section -> Element FrontendMsg
-viewSection choices section =
-    Theme.column
-        [ Border.width 1
-        , Theme.padding
-        , width fill
-        ]
-        (el [ Font.bold ] (text section.name)
-            :: List.map (\line -> paragraph [] [ text line ]) section.description
-            ++ List.map
-                (viewPower choices)
-                section.powers
-        )
-
-
-viewPower : Choices -> Power -> Element FrontendMsg
-viewPower choices power =
-    let
-        currentTier : Maybe Tier
-        currentTier =
-            powerTier choices power.id
-
-        missingPrereq : List String
-        missingPrereq =
-            List.filter
-                (\name -> powerTier choices name == Nothing)
-                power.requires
-
-        viewRequirement : String -> Element msg
-        viewRequirement requirement =
-            el
-                [ Font.color <|
-                    if List.member requirement missingPrereq then
-                        if currentTier == Nothing then
-                            rgb 0.6 0.4 0
-
-                        else
-                            rgb 1 0 0
-
-                    else
-                        rgb 0.4 0.6 0
-                ]
-                (text requirement)
-
-        label : List (Element msg) -> Element msg
-        label children =
-            Theme.column [ width fill ]
-                [ Theme.row [ width fill ]
-                    [ el [ Font.bold ] <| text power.label
-                    , el [ alignRight ] <|
-                        text <|
-                            if power.cost >= 0 then
-                                "Cost: " ++ String.fromInt power.cost
-
-                            else
-                                "Grants: +" ++ String.fromInt -power.cost
-                    ]
-                , if List.isEmpty power.requires then
-                    Element.none
-
-                  else
-                    paragraph [ Font.italic ] <|
-                        text "Requires: "
-                            :: List.intersperse
-                                (text " and ")
-                                (List.map viewRequirement power.requires)
-                , Theme.row [ width fill ]
-                    (paragraph [ width fill ]
-                        [ text power.description ]
-                        :: children
-                    )
-                ]
-
-        common : List (Attribute msg)
-        common =
-            [ Theme.padding
-            , Border.width 1
-            , width fill
-            ]
-    in
-    case choices of
-        Tiered _ ->
-            el
-                ((Background.color <|
-                    if currentTier == Nothing then
-                        if List.isEmpty missingPrereq then
-                            rgb 0.9 0.9 1
-
-                        else
-                            rgb 0.9 0.9 0.9
-
-                    else if List.isEmpty missingPrereq then
-                        rgb 0.7 1 0.7
-
-                    else
-                        rgb 1 0.7 0.7
-                 )
-                    :: common
-                )
-            <|
-                label <|
-                    List.map
-                        (\tier ->
-                            let
-                                selected : Bool
-                                selected =
-                                    Just tier == currentTier
-                            in
-                            Input.button
-                                (tierButtonAttrs selected tier)
-                                { onPress =
-                                    Just
-                                        (ChooseTier power.id <|
-                                            if selected then
-                                                Nothing
-
-                                            else
-                                                Just tier
-                                        )
-                                , label = text <| tierToString tier
-                                }
-                        )
-                        [ S, A, B, C, D, F ]
-
-        Simple _ ->
-            Input.button
-                ((Background.color <|
-                    if currentTier == Nothing then
-                        if List.isEmpty missingPrereq then
-                            rgb 0.9 0.9 1
-
-                        else
-                            rgb 0.9 0.9 0.9
-
-                    else if List.isEmpty missingPrereq then
-                        rgb 0.7 1 0.7
-
-                    else
-                        rgb 1 0.7 0.7
-                 )
-                    :: common
-                )
-                { onPress =
-                    Just <|
-                        ChooseTier power.id <|
-                            if currentTier == Nothing then
-                                Just S
-
-                            else
-                                Nothing
-                , label = label []
-                }
-
-
-tierButtonAttrs : Bool -> Tier -> List (Attribute msg)
-tierButtonAttrs selected tier =
-    [ if selected then
-        Background.color <| colorToColor <| tierToColor tier
-
-      else
-        Background.color <| colorToColor <| hslaMap (\hsla -> { hsla | saturation = 0.2 }) <| tierToColor tier
-    , Theme.padding
-    , Border.width 1
-    ]
-
-
-hslaMap : (Hsla -> Hsla) -> Color.Color -> Color.Color
-hslaMap f color =
-    color
-        |> Color.toHsla
-        |> f
-        |> Color.fromHsla
-
-
-type alias Hsla =
-    { alpha : Float
-    , lightness : Float
-    , hue : Float
-    , saturation : Float
-    }
-
-
-colorToColor : Color.Color -> Color
-colorToColor color =
-    let
-        rgba : { red : Float, green : Float, blue : Float, alpha : Float }
-        rgba =
-            Color.toRgba color
-    in
-    Element.rgba rgba.red rgba.green rgba.blue rgba.alpha
-
-
-powerTier : Choices -> String -> Maybe Tier
-powerTier choices name =
-    case choices of
-        Tiered tiered ->
-            Dict.get name tiered
-
-        Simple simple ->
-            if Set.member name simple then
-                Just S
-
-            else
-                Nothing
 
 
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
@@ -848,8 +593,8 @@ adminUpdate msg =
         CreateDo cyoaId ->
             ( Listing, Just <| TBCreateCYOA cyoaId )
 
-        UpdatePrepare cyoaId old current ->
-            ( Editing cyoaId old current, Nothing )
+        UpdatePrepare cyoaId old current preview ->
+            ( Editing cyoaId old current preview, Nothing )
 
         UpdateDo cyoaId cyoa ->
             ( Listing, Just <| TBUpdateCYOA cyoaId cyoa )

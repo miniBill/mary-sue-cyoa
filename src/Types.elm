@@ -1,4 +1,4 @@
-module Types exposing (AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..))
+module Types exposing (AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..), powerTier, tierToString)
 
 import Browser
 import Browser.Navigation exposing (Key)
@@ -38,7 +38,7 @@ type InnerModel
 type InnerAdminModel
     = Listing
     | Creating CYOAId
-    | Editing CYOAId String String
+    | Editing CYOAId String String Bool
     | Deleting CYOAId
     | Renaming CYOAId CYOAId
 
@@ -55,6 +55,28 @@ type Tier
     | C
     | D
     | F
+
+
+tierToString : Tier -> String
+tierToString tier =
+    case tier of
+        S ->
+            "S"
+
+        A ->
+            "A"
+
+        B ->
+            "B"
+
+        C ->
+            "C"
+
+        D ->
+            "D"
+
+        F ->
+            "F"
 
 
 type alias CYOA =
@@ -90,7 +112,7 @@ type FrontendMsg
 type AdminMsg
     = CreatePrepare CYOAId
     | CreateDo CYOAId
-    | UpdatePrepare CYOAId String String
+    | UpdatePrepare CYOAId String String Bool
     | UpdateDo CYOAId CYOA
     | RenamePrepare CYOAId CYOAId
     | RenameDo CYOAId CYOAId
@@ -137,3 +159,17 @@ type ToFrontend
     | TFDeletedCYOA CYOAId
     | TFCYOAMissing CYOAId
     | TFAdmin (Dict CYOAId CYOA)
+
+
+powerTier : Choices -> String -> Maybe Tier
+powerTier choices name =
+    case choices of
+        Tiered tiered ->
+            Dict.get name tiered
+
+        Simple simple ->
+            if Set.member name simple then
+                Just S
+
+            else
+                Nothing

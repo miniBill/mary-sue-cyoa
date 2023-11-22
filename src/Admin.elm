@@ -1,14 +1,16 @@
 module Admin exposing (view)
 
+import CYOAViewer
 import Dict exposing (Dict)
-import Element exposing (Element, alignRight, el, fill, height, inFront, newTabLink, rgb, text, width)
+import Element exposing (Element, alignRight, alignTop, el, fill, height, inFront, newTabLink, rgb, spacing, text, width)
 import Element.Background as Background
 import Element.Font as Font
 import Element.Input as Input
 import Parser exposing ((|.), (|=), Parser, Problem(..))
 import Password exposing (Password)
+import Set
 import Theme
-import Types exposing (AdminMsg(..), CYOA, CYOAId, InnerAdminModel(..), Power, Section)
+import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Section)
 import Url
 import Url.Builder
 
@@ -22,8 +24,8 @@ view admin =
         Creating cyoaId ->
             viewCreating cyoaId
 
-        Editing cyoaId old current ->
-            viewEditing cyoaId old current
+        Editing cyoaId old current preview ->
+            viewEditing cyoaId old current preview
 
         Renaming _ _ ->
             [ Theme.centralMessage "branch 'Renaming _ _' not implemented" ]
@@ -32,7 +34,11 @@ view admin =
             [ Theme.centralMessage "branch 'Deleting _' not implemented" ]
     )
         |> (::) (topRow admin.inner)
-        |> Theme.column [ Theme.padding, width fill, height fill ]
+        |> Theme.column
+            [ Theme.padding
+            , width fill
+            , height fill
+            ]
 
 
 viewCreating : CYOAId -> List (Element AdminMsg)
@@ -52,41 +58,96 @@ viewCreating cyoaId =
     ]
 
 
-viewEditing : CYOAId -> String -> String -> List (Element AdminMsg)
-viewEditing cyoaId old current =
-    [ Theme.row
-        [ width fill
-        , inFront <|
-            el [ alignRight ] <|
-                case Parser.run mainParser (current ++ "\n") of
-                    Ok cyoa ->
-                        Theme.button []
-                            { onPress =
-                                if old == current then
-                                    Nothing
+viewEditing : CYOAId -> String -> String -> Bool -> List (Element AdminMsg)
+viewEditing cyoaId old current preview =
+    let
+        inputBox : Element AdminMsg
+        inputBox =
+            Input.multiline
+                [ alignTop
+                , width fill
+                , height <| Element.maximum 6969 fill
+                , Background.color Theme.palerViolet
+                ]
+                { label = Input.labelAbove [] <| text "Content"
+                , text = current
+                , onChange = \newValue -> UpdatePrepare cyoaId old newValue preview
+                , placeholder = Nothing
+                , spellcheck = True
+                }
 
-                                else
-                                    Just <| UpdateDo cyoaId cyoa
-                            , label = text "Save"
+        parsed : Result (List Parser.DeadEnd) (List Section)
+        parsed =
+            Parser.run mainParser (current ++ "\n")
+
+        saveButton : Maybe CYOA -> Element AdminMsg
+        saveButton cyoa =
+            Theme.button []
+                { onPress =
+                    if old == current then
+                        Nothing
+
+                    else
+                        Maybe.map (UpdateDo cyoaId) cyoa
+                , label = text "Save"
+                }
+
+        previewBox : Element msg
+        previewBox =
+            Theme.column
+                [ alignTop
+                , width fill
+                , height fill
+                , spacing 26
+                ]
+                [ el [] Element.none
+                , case parsed of
+                    Ok cyoa ->
+                        CYOAViewer.view Nothing
+                            { choices = Simple Set.empty
+                            , data = cyoa
                             }
 
                     Err e ->
-                        el [ Font.color <| rgb 1 0 0 ] <|
-                            text <|
-                                errorToString e
+                        errorView e
+                ]
+
+        errorView : List Parser.DeadEnd -> Element msg
+        errorView e =
+            el [ Font.color <| rgb 1 0 0 ] <|
+                text <|
+                    errorToString e
+    in
+    [ Theme.row
+        [ width fill
+        , inFront <|
+            Theme.row [ alignRight ]
+                [ case parsed of
+                    Ok cyoa ->
+                        saveButton (Just cyoa)
+
+                    Err e ->
+                        if preview then
+                            saveButton Nothing
+
+                        else
+                            errorView e
+                , Theme.button []
+                    { onPress = Just <| UpdatePrepare cyoaId old current (not preview)
+                    , label = text "Preview"
+                    }
+                ]
         ]
         [ el [ Font.bold ] <| text <| "Editing " ++ cyoaId
         ]
-    , Input.multiline
-        [ width fill
-        , Background.color Theme.palerViolet
-        ]
-        { label = Input.labelAbove [] <| text "Content"
-        , text = current
-        , onChange = UpdatePrepare cyoaId old
-        , placeholder = Nothing
-        , spellcheck = True
-        }
+    , if preview then
+        Theme.row [ width fill, height fill ]
+            [ inputBox
+            , previewBox
+            ]
+
+      else
+        inputBox
     ]
 
 
@@ -108,7 +169,7 @@ viewAdminList cyoas =
                 Theme.row []
                     [ Theme.button []
                         { label = text cyoaId
-                        , onPress = Just <| UpdatePrepare cyoaId raw raw
+                        , onPress = Just <| UpdatePrepare cyoaId raw raw False
                         }
                     , text <| "Link:"
                     , newTabLink
@@ -201,7 +262,7 @@ topRow inner =
                     Just <| CreatePrepare ""
         }
     , case inner of
-        Editing _ _ _ ->
+        Editing _ _ _ _ ->
             Theme.button []
                 { label = text "Edit"
                 , onPress = Nothing

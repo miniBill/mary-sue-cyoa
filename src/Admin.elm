@@ -1,17 +1,17 @@
 module Admin exposing (view)
 
+import CYOAParser
 import CYOAViewer
 import Dict exposing (Dict)
 import Element exposing (Element, alignRight, alignTop, el, fill, height, inFront, newTabLink, rgb, spacing, text, width)
 import Element.Background as Background
 import Element.Font as Font
 import Element.Input as Input
-import EnglishNumbers
-import Parser exposing ((|.), (|=), Parser, Problem(..))
+import Parser
 import Password exposing (Password)
 import Set
 import Theme
-import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Requirement(..), Section)
+import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Section)
 import Url
 import Url.Builder
 
@@ -79,7 +79,7 @@ viewEditing cyoaId old current preview =
 
         parsed : Result (List Parser.DeadEnd) (List Section)
         parsed =
-            Parser.run mainParser (current ++ "\n")
+            Parser.run CYOAParser.mainParser (current ++ "\n")
 
         saveButton : Maybe CYOA -> Element AdminMsg
         saveButton cyoa =
@@ -117,7 +117,7 @@ viewEditing cyoaId old current preview =
         errorView e =
             el [ Font.color <| rgb 1 0 0 ] <|
                 text <|
-                    errorToString e
+                    CYOAParser.errorToString e
     in
     [ Theme.row
         [ width fill
@@ -276,200 +276,3 @@ topRow inner =
             Element.none
     ]
         |> Theme.row []
-
-
-mainParser : Parser (List Section)
-mainParser =
-    Parser.succeed identity
-        |= many parseSection
-        |. Parser.end
-
-
-parseSection : Parser Section
-parseSection =
-    Parser.succeed
-        (\name description powers ->
-            { name = name
-            , description = description
-            , powers = powers
-            }
-        )
-        |= Parser.getChompedString (Parser.chompUntil "\n")
-        |. Parser.spaces
-        |= many nonNameParser
-        |. Parser.spaces
-        |= many powerParser
-
-
-nonNameParser : Parser String
-nonNameParser =
-    Parser.chompUntil "\n"
-        |> Parser.getChompedString
-        |> Parser.backtrackable
-        |> Parser.andThen
-            (\s ->
-                if String.startsWith "Name: " s then
-                    Parser.problem "Starts with name"
-
-                else
-                    Parser.succeed s
-            )
-
-
-powerParser : Parser Power
-powerParser =
-    Parser.succeed
-        (\label cost maybeId requires description ->
-            { label = label
-            , id = Maybe.withDefault label maybeId
-            , cost = cost
-            , requires = requires
-            , description = description
-            }
-        )
-        |. Parser.token "Name: "
-        |= Parser.getChompedString (Parser.chompUntil " - ")
-        |. Parser.token " - "
-        |= Parser.oneOf
-            [ Parser.succeed identity
-                |. Parser.token "Cost: "
-                |= Parser.int
-            , Parser.succeed negate
-                |. Parser.token "Grants: +"
-                |= Parser.int
-            ]
-        |. Parser.token " ☐"
-        |. Parser.spaces
-        |= Parser.oneOf
-            [ Parser.succeed Just
-                |. Parser.token "Id: "
-                |= Parser.getChompedString (Parser.chompUntil "\n")
-            , Parser.succeed Nothing
-            ]
-        |. Parser.spaces
-        |= Parser.oneOf
-            [ Parser.succeed
-                (\req ->
-                    req
-                        |> String.split " and "
-                        |> List.map String.trim
-                        |> List.map
-                            (\s ->
-                                let
-                                    cut =
-                                        if String.endsWith "." s then
-                                            String.dropRight 1 s
-
-                                        else
-                                            s
-                                in
-                                cut
-                                    |> Parser.run requirementParser
-                                    |> Result.withDefault (Requirement cut)
-                            )
-                )
-                |. Parser.token "(Requires "
-                |= Parser.getChompedString (Parser.chompUntil ")")
-                |. Parser.token ")"
-            , Parser.succeed []
-            ]
-        |. Parser.spaces
-        |= Parser.getChompedString (Parser.chompUntil "\n")
-
-
-requirementParser : Parser Requirement
-requirementParser =
-    Parser.succeed (\num reqs -> AtLeastXOf num ((List.map Requirement << String.split ", ") reqs))
-        |. Parser.symbol "at least "
-        |= numberParser
-        |. Parser.symbol " of: "
-        |= Parser.getChompedString (Parser.chompUntilEndOr ")")
-
-
-numberParser : Parser Int
-numberParser =
-    Parser.getChompedString (Parser.chompWhile Char.isAlphaNum)
-        |> Parser.andThen
-            (\s ->
-                case String.toInt s of
-                    Just i ->
-                        Parser.succeed i
-
-                    Nothing ->
-                        case EnglishNumbers.fromString s of
-                            Just i ->
-                                Parser.succeed i
-
-                            Nothing ->
-                                Parser.problem <| "\"" ++ s ++ "\" is not a valid number"
-            )
-
-
-many : Parser a -> Parser (List a)
-many parser =
-    Parser.sequence
-        { start = ""
-        , end = ""
-        , trailing = Parser.Optional
-        , separator = ""
-        , spaces = Parser.spaces
-        , item = parser
-        }
-
-
-errorToString : List Parser.DeadEnd -> String
-errorToString deadEnds =
-    String.join "\n" <|
-        "Error:"
-            :: List.map deadEndToString deadEnds
-
-
-deadEndToString : Parser.DeadEnd -> String
-deadEndToString deadEnd =
-    "At " ++ String.fromInt deadEnd.row ++ ":" ++ String.fromInt deadEnd.col ++ ": " ++ problemToString deadEnd.problem
-
-
-problemToString : Parser.Problem -> String
-problemToString problem =
-    case problem of
-        ExpectingInt ->
-            "Expecting int"
-
-        ExpectingHex ->
-            "Expecting hex"
-
-        ExpectingOctal ->
-            "Expecting octal"
-
-        ExpectingBinary ->
-            "Expecting binary"
-
-        ExpectingFloat ->
-            "Expecting float"
-
-        ExpectingNumber ->
-            "Expecting number"
-
-        ExpectingVariable ->
-            "Expecting variable"
-
-        ExpectingSymbol s ->
-            "Expecting symbol " ++ s
-
-        ExpectingKeyword k ->
-            "Expecting keyword " ++ k
-
-        Expecting e ->
-            "Expecting " ++ e
-
-        ExpectingEnd ->
-            "Expecting end"
-
-        UnexpectedChar ->
-            "Unexpected char"
-
-        Problem p ->
-            "Problem: " ++ p
-
-        BadRepeat ->
-            "Bad repetition"

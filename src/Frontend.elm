@@ -345,20 +345,20 @@ tierFromString strings =
             Nothing
 
 
-choicesToUrl : Choices -> String
-choicesToUrl selected =
+choicesToUrl : CYOAId -> Choices -> String
+choicesToUrl cyoaid selected =
     case selected of
         Tiered tiers ->
             tiers
                 |> Dict.toList
                 |> List.map (\( key, value ) -> Url.Builder.string key <| tierToString value)
-                |> Url.Builder.absolute []
+                |> Url.Builder.absolute (String.split "/" cyoaid)
 
         Simple choices ->
             choices
                 |> Set.toList
                 |> List.map (\key -> Url.Builder.string key "Y")
-                |> Url.Builder.absolute []
+                |> Url.Builder.absolute (String.split "/" cyoaid)
 
 
 tierToString : Tier -> String
@@ -753,7 +753,7 @@ update msg model =
             in
             ( { model | inner = Loaded { inner | choices = newChoices } }
             , Browser.Navigation.replaceUrl model.key
-                (choicesToUrl newChoices)
+                (choicesToUrl inner.cyoaId newChoices)
             )
 
         ( ToggleKind _, _ ) ->
@@ -778,7 +778,7 @@ update msg model =
             in
             ( { model | inner = Loaded { inner | choices = newChoices } }
             , Browser.Navigation.replaceUrl model.key
-                (choicesToUrl newChoices)
+                (choicesToUrl inner.cyoaId newChoices)
             )
 
         ( ChooseTier _ _, _ ) ->

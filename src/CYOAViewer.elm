@@ -38,7 +38,7 @@ viewSection chooseTier choices section =
         , Theme.padding
         , width fill
         ]
-        (el [ Font.bold ] (text section.name)
+        (paragraph [ Font.bold ] [ text section.name ]
             :: List.map (\line -> paragraph [] [ text line ]) section.description
             ++ List.map
                 (viewPower chooseTier choices)

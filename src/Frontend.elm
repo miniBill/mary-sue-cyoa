@@ -303,12 +303,12 @@ urlToChoices appUrl =
                     )
     in
     case tiered of
-        Just t ->
+        Just ((_ :: _) as t) ->
             t
                 |> Dict.fromList
                 |> Tiered
 
-        Nothing ->
+        _ ->
             list
                 |> List.map Tuple.first
                 |> Set.fromList

@@ -219,14 +219,14 @@ groupPowers powers =
                     (\power ( lastGroup, acc ) ->
                         case lastGroup of
                             Nothing ->
-                                ( Just ( power.id, power, [] ), acc )
+                                ( Just ( power, [] ), acc )
 
-                            Just ( lastId, lastPower, lastGroupAcc ) ->
-                                if power.replaces == Just lastId then
-                                    ( Just ( lastId, lastPower, power :: lastGroupAcc ), acc )
+                            Just ( lastPower, lastGroupAcc ) ->
+                                if power.replaces == Just lastPower.id then
+                                    ( Just ( lastPower, { power | requires = lastPower.requires } :: lastGroupAcc ), acc )
 
                                 else
-                                    ( Just ( power.id, power, [] )
+                                    ( Just ( power, [] )
                                     , ( lastPower, List.reverse lastGroupAcc ) :: acc
                                     )
                     )
@@ -236,5 +236,5 @@ groupPowers powers =
         Nothing ->
             List.reverse finalAcc
 
-        Just ( _, lp, lg ) ->
+        Just ( lp, lg ) ->
             List.reverse (( lp, lg ) :: finalAcc)

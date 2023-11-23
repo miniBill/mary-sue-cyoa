@@ -394,32 +394,34 @@ viewToggle choices =
 viewScore : Choices -> List Section -> Element FrontendMsg
 viewScore choices sections =
     let
-        sum : List Tier -> List Tier -> Int
+        sum : List Tier -> List Tier -> ( Int, Int )
         sum costTiers gainTiers =
             sections
                 |> List.map (sumSection costTiers gainTiers)
-                |> List.sum
+                |> List.unzip
+                |> Tuple.mapBoth List.sum (\d -> 70 + List.sum d)
 
-        sumSection : List Tier -> List Tier -> Section -> Int
+        sumSection : List Tier -> List Tier -> Section -> ( Int, Int )
         sumSection costTiers gainTiers { powers } =
             powers
                 |> List.map
                     (\{ id, cost } ->
                         case Types.powerTier choices id of
                             Nothing ->
-                                0
+                                ( 0, 0 )
 
                             Just tier ->
-                                if
-                                    (cost > 0 && List.member tier costTiers)
-                                        || (cost < 0 && List.member tier gainTiers)
-                                then
-                                    cost
+                                if cost > 0 && List.member tier costTiers then
+                                    ( cost, 0 )
+
+                                else if cost < 0 && List.member tier gainTiers then
+                                    ( 0, -cost )
 
                                 else
-                                    0
+                                    ( 0, 0 )
                     )
-                |> List.sum
+                |> List.unzip
+                |> Tuple.mapBoth List.sum List.sum
     in
     case choices of
         Tiered _ ->
@@ -451,13 +453,12 @@ viewScore choices sections =
                             , view =
                                 \( rowTier, rowAll ) ->
                                     let
-                                        cellSum : Int
-                                        cellSum =
+                                        ( cellSum, cellTotal ) =
                                             sum rowAll colAll
                                     in
                                     el
-                                        (Font.center :: Theme.tierButtonAttrs (cellSum <= 70) rowTier)
-                                        (text <| String.fromInt cellSum)
+                                        (Font.center :: Theme.tierButtonAttrs (cellSum <= cellTotal) rowTier)
+                                        (text <| String.fromInt cellSum ++ "/" ++ String.fromInt cellTotal)
                             }
                         )
                     |> (::)
@@ -470,20 +471,19 @@ viewScore choices sections =
 
         Simple _ ->
             let
-                s : Int
-                s =
+                ( s, t ) =
                     sum
                         [ S, A, B, C, D, F ]
                         [ S, A, B, C, D, F ]
             in
             el
-                (if s > 70 then
+                (if s > t then
                     [ Font.color (rgb 0.7 0 0), Font.bold ]
 
                  else
                     [ Font.bold ]
                 )
-                (text <| "Score " ++ String.fromInt s ++ "/70")
+                (text <| "Score " ++ String.fromInt s ++ "/" ++ String.fromInt t)
 
 
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )

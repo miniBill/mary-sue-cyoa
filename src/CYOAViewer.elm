@@ -13,7 +13,7 @@ import Markdown.Parser
 import Markdown.Renderer
 import Set
 import Theme
-import Types exposing (CYOA, CYOAId, Choices(..), Power, Requirement(..), Section, Tier(..))
+import Types exposing (CYOAId, Choices(..), Power, Requirement(..), Section, Tier(..))
 
 
 view : Maybe (String -> Maybe Tier -> msg) -> { a | choices : Choices, data : Types.CYOA } -> Element msg

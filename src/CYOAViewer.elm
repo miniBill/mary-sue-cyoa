@@ -13,7 +13,7 @@ import Markdown.Parser
 import Markdown.Renderer
 import Set
 import Theme
-import Types exposing (Choices(..), Power, Requirement(..), Section, Tier(..))
+import Types exposing (CYOA, CYOAId, Choices(..), Power, Requirement(..), Section, Tier(..))
 
 
 view : Maybe (String -> Maybe Tier -> msg) -> { a | choices : Choices, data : Types.CYOA } -> Element msg
@@ -29,13 +29,13 @@ view chooseTier innerModel =
         , height fill
         ]
         (List.map
-            (viewSection chooseTier innerModel.choices)
+            (viewSection innerModel.data chooseTier innerModel.choices)
             innerModel.data
         )
 
 
-viewSection : Maybe (String -> Maybe Tier -> msg) -> Choices -> Section -> Element msg
-viewSection chooseTier choices section =
+viewSection : CYOA -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Section -> Element msg
+viewSection cyoa chooseTier choices section =
     Theme.column
         [ Border.width 1
         , Theme.padding
@@ -44,20 +44,20 @@ viewSection chooseTier choices section =
         (paragraph [ Font.bold ] [ viewMarkdown section.name ]
             :: List.map (\line -> paragraph [] [ viewMarkdown line ]) section.description
             ++ List.map
-                (viewGroup chooseTier choices)
+                (viewGroup cyoa chooseTier choices)
                 (Types.groupPowers section.powers)
         )
 
 
-viewGroup : Maybe (String -> Maybe Tier -> msg) -> Choices -> ( Power, List Power ) -> Element msg
-viewGroup chooseTier choices ( power, powers ) =
+viewGroup : CYOA -> Maybe (String -> Maybe Tier -> msg) -> Choices -> ( Power, List Power ) -> Element msg
+viewGroup cyoa chooseTier choices ( power, powers ) =
     case powers of
         [] ->
-            viewPower [] { tiersBelow = False } chooseTier choices power
+            viewPower cyoa [] { tiersBelow = False } chooseTier choices power
 
         _ ->
             (power :: powers)
-                |> List.map (viewPower [ height fill ] { tiersBelow = True } chooseTier choices)
+                |> List.map (viewPower cyoa [ height fill ] { tiersBelow = True } chooseTier choices)
                 |> Theme.row
                     [ width fill
 
@@ -89,8 +89,8 @@ viewMarkdown source =
                     Element.html <| Html.span [] html
 
 
-viewPower : List (Attribute msg) -> { tiersBelow : Bool } -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
-viewPower attrs { tiersBelow } chooseTier choices power =
+viewPower : CYOA -> List (Attribute msg) -> { tiersBelow : Bool } -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
+viewPower cyoa attrs { tiersBelow } chooseTier choices power =
     let
         currentTier : Maybe Tier
         currentTier =
@@ -131,7 +131,7 @@ viewPower attrs { tiersBelow } chooseTier choices power =
                         text "Requires: "
                             :: List.Extra.intercalate
                                 [ text " and " ]
-                                (List.map (viewRequirement choices currentTier) power.requires)
+                                (List.map (viewRequirement cyoa choices currentTier) power.requires)
                 , if tiersBelow then
                     descriptionRows
                         ++ [ Theme.row [ centerX, alignBottom ] children ]
@@ -168,7 +168,7 @@ viewPower attrs { tiersBelow } chooseTier choices power =
 
         allRequirementsSatisfied : Bool
         allRequirementsSatisfied =
-            List.all (isRequirementSatisfied choices) power.requires
+            List.all (isRequirementSatisfied cyoa choices) power.requires
 
         backgroundColor : Element.Color
         backgroundColor =
@@ -227,12 +227,12 @@ viewPower attrs { tiersBelow } chooseTier choices power =
                 }
 
 
-viewRequirement : Choices -> Maybe Tier -> Requirement -> List (Element msg)
-viewRequirement choices currentTier topLevelRequirement =
+viewRequirement : CYOA -> Choices -> Maybe Tier -> Requirement -> List (Element msg)
+viewRequirement cyoa choices currentTier topLevelRequirement =
     let
         allRequirementsSatisfied : Bool
         allRequirementsSatisfied =
-            isRequirementSatisfied choices topLevelRequirement
+            isRequirementSatisfied cyoa choices topLevelRequirement
 
         go : Requirement -> List (Element msg)
         go requirement =
@@ -240,7 +240,7 @@ viewRequirement choices currentTier topLevelRequirement =
                 Requirement req ->
                     [ el
                         [ Font.color <|
-                            if isRequirementSatisfied choices requirement then
+                            if isRequirementSatisfied cyoa choices requirement then
                                 rgb 0.4 0.6 0
 
                             else if currentTier == Nothing || allRequirementsSatisfied then
@@ -279,21 +279,33 @@ viewRequirement choices currentTier topLevelRequirement =
     go topLevelRequirement
 
 
-isRequirementSatisfied : Choices -> Requirement -> Bool
-isRequirementSatisfied choices requirement =
+isRequirementSatisfied : CYOA -> Choices -> Requirement -> Bool
+isRequirementSatisfied cyoa choices requirement =
+    let
+        findWith : (CYOAId -> b -> Bool) -> b -> CYOAId -> Bool
+        findWith member collection name =
+            member name collection
+                || List.any
+                    (\section ->
+                        List.any
+                            (\power -> power.replaces == Just name && member power.id collection)
+                            section.powers
+                    )
+                    cyoa
+    in
     case ( choices, requirement ) of
         ( Simple simple, Requirement name ) ->
-            Set.member name simple
+            findWith Set.member simple name
 
         ( Tiered tiered, Requirement name ) ->
-            Dict.member name tiered
+            findWith Dict.member tiered name
 
         ( _, AtLeastXOf required names ) ->
             let
                 got : Int
                 got =
                     List.Extra.count
-                        (isRequirementSatisfied choices)
+                        (isRequirementSatisfied cyoa choices)
                         names
             in
             got >= required

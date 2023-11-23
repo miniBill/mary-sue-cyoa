@@ -1,4 +1,4 @@
-module Types exposing (AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Requirement(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..), groupPowers, powerTier, requirementToString, tierToString)
+module Types exposing (AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Requirement(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..), getAlternatives, groupPowers, powerTier, requirementToString, tierToString)
 
 import Browser
 import Browser.Navigation exposing (Key)
@@ -238,3 +238,25 @@ groupPowers powers =
 
         Just ( lp, lg ) ->
             List.reverse (( lp, lg ) :: finalAcc)
+
+
+getAlternatives : CYOA -> Dict CYOAId (List CYOAId)
+getAlternatives sections =
+    let
+        upsert : CYOAId -> CYOAId -> Dict CYOAId (List CYOAId) -> Dict CYOAId (List CYOAId)
+        upsert key value acc =
+            Dict.insert key (value :: Maybe.withDefault [] (Dict.get key acc)) acc
+    in
+    sections
+        |> List.foldl
+            (\section acc ->
+                List.foldl
+                    (\power ->
+                        upsert (Maybe.withDefault power.id power.replaces) power.id
+                    )
+                    acc
+                    section.powers
+            )
+            Dict.empty
+        |> Dict.map (\_ -> List.reverse)
+        |> Dict.filter (\_ v -> List.length v > 1)

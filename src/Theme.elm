@@ -1,4 +1,4 @@
-module Theme exposing (almostPaleViolet, button, centralMessage, column, darkViolet, padding, paleViolet, palerViolet, rhythm, row, spacing, tierButtonAttrs, violet, wrappedRow)
+module Theme exposing (button, centralMessage, column, darkViolet, padding, paleViolet, palerViolet, rhythm, row, spacing, tierButtonAttrs, violet, wrappedRow)
 
 import Color
 import Element exposing (Attribute, Color, Element, centerX, centerY, el, rgb, rgb255, text)
@@ -93,11 +93,6 @@ violet =
 palerViolet : Color
 palerViolet =
     Element.rgb255 0xF6 0xEA 0xFE
-
-
-almostPaleViolet : Color
-almostPaleViolet =
-    Element.rgb255 0x8C 0x4B 0xCB
 
 
 paleViolet : Color

@@ -1,6 +1,6 @@
 module CYOAViewer exposing (view)
 
-import Dict
+import Dict exposing (Dict)
 import Element exposing (Attribute, Element, alignBottom, alignRight, alignTop, centerX, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
 import Element.Background as Background
 import Element.Border as Border
@@ -18,6 +18,11 @@ import Types exposing (CYOA, CYOAId, Choices(..), Power, Requirement(..), Sectio
 
 view : Maybe (String -> Maybe Tier -> msg) -> { a | choices : Choices, data : Types.CYOA } -> Element msg
 view chooseTier innerModel =
+    let
+        alternatives : Dict CYOAId (List String)
+        alternatives =
+            Types.getAlternatives innerModel.data
+    in
     Theme.column
         [ scrollbarY
         , paddingEach
@@ -29,13 +34,13 @@ view chooseTier innerModel =
         , height fill
         ]
         (List.map
-            (viewSection innerModel.data chooseTier innerModel.choices)
+            (viewSection alternatives chooseTier innerModel.choices)
             innerModel.data
         )
 
 
-viewSection : CYOA -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Section -> Element msg
-viewSection cyoa chooseTier choices section =
+viewSection : Dict CYOAId (List String) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Section -> Element msg
+viewSection alternatives chooseTier choices section =
     Theme.column
         [ Border.width 1
         , Theme.padding
@@ -44,20 +49,20 @@ viewSection cyoa chooseTier choices section =
         (paragraph [ Font.bold ] [ viewMarkdown section.name ]
             :: List.map (\line -> paragraph [] [ viewMarkdown line ]) section.description
             ++ List.map
-                (viewGroup cyoa chooseTier choices)
+                (viewGroup alternatives chooseTier choices)
                 (Types.groupPowers section.powers)
         )
 
 
-viewGroup : CYOA -> Maybe (String -> Maybe Tier -> msg) -> Choices -> ( Power, List Power ) -> Element msg
-viewGroup cyoa chooseTier choices ( power, powers ) =
+viewGroup : Dict CYOAId (List String) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> ( Power, List Power ) -> Element msg
+viewGroup alternatives chooseTier choices ( power, powers ) =
     case powers of
         [] ->
-            viewPower cyoa [] { tiersBelow = False } chooseTier choices power
+            viewPower alternatives [] { tiersBelow = False } chooseTier choices power
 
         _ ->
             (power :: powers)
-                |> List.map (viewPower cyoa [ height fill ] { tiersBelow = True } chooseTier choices)
+                |> List.map (viewPower alternatives [ height fill ] { tiersBelow = True } chooseTier choices)
                 |> Theme.row [ width fill ]
 
 
@@ -83,8 +88,8 @@ viewMarkdown source =
                     Element.html <| Html.span [] html
 
 
-viewPower : CYOA -> List (Attribute msg) -> { tiersBelow : Bool } -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
-viewPower cyoa attrs { tiersBelow } chooseTier choices power =
+viewPower : Dict CYOAId (List String) -> List (Attribute msg) -> { tiersBelow : Bool } -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
+viewPower alternatives attrs { tiersBelow } chooseTier choices power =
     let
         currentTier : Maybe Tier
         currentTier =
@@ -125,7 +130,7 @@ viewPower cyoa attrs { tiersBelow } chooseTier choices power =
                         text "Requires: "
                             :: List.Extra.intercalate
                                 [ text " and " ]
-                                (List.map (viewRequirement cyoa choices currentTier) power.requires)
+                                (List.map (viewRequirement alternatives choices currentTier) power.requires)
                 , if tiersBelow then
                     descriptionRows
                         ++ [ Theme.row [ centerX, alignBottom ] children ]
@@ -162,7 +167,7 @@ viewPower cyoa attrs { tiersBelow } chooseTier choices power =
 
         allRequirementsSatisfied : Bool
         allRequirementsSatisfied =
-            List.all (isRequirementSatisfied cyoa choices) power.requires
+            List.all (isRequirementSatisfied alternatives choices) power.requires
 
         backgroundColor : Element.Color
         backgroundColor =
@@ -221,12 +226,12 @@ viewPower cyoa attrs { tiersBelow } chooseTier choices power =
                 }
 
 
-viewRequirement : CYOA -> Choices -> Maybe Tier -> Requirement -> List (Element msg)
-viewRequirement cyoa choices currentTier topLevelRequirement =
+viewRequirement : Dict CYOAId (List String) -> Choices -> Maybe Tier -> Requirement -> List (Element msg)
+viewRequirement alternatives choices currentTier topLevelRequirement =
     let
         allRequirementsSatisfied : Bool
         allRequirementsSatisfied =
-            isRequirementSatisfied cyoa choices topLevelRequirement
+            isRequirementSatisfied alternatives choices topLevelRequirement
 
         go : Requirement -> List (Element msg)
         go requirement =
@@ -234,7 +239,7 @@ viewRequirement cyoa choices currentTier topLevelRequirement =
                 Requirement req ->
                     [ el
                         [ Font.color <|
-                            if isRequirementSatisfied cyoa choices requirement then
+                            if isRequirementSatisfied alternatives choices requirement then
                                 rgb 0.4 0.6 0
 
                             else if currentTier == Nothing || allRequirementsSatisfied then
@@ -243,7 +248,13 @@ viewRequirement cyoa choices currentTier topLevelRequirement =
                             else
                                 rgb 1 0 0
                         ]
-                        (text req)
+                        (case Dict.get req alternatives of
+                            Just (first :: rest) ->
+                                text <| first ++ " (or " ++ String.join ", or " rest ++ ")"
+
+                            _ ->
+                                text req
+                        )
                     ]
 
                 AtLeastXOf required children ->
@@ -273,19 +284,15 @@ viewRequirement cyoa choices currentTier topLevelRequirement =
     go topLevelRequirement
 
 
-isRequirementSatisfied : CYOA -> Choices -> Requirement -> Bool
-isRequirementSatisfied cyoa choices requirement =
+isRequirementSatisfied : Dict CYOAId (List String) -> Choices -> Requirement -> Bool
+isRequirementSatisfied alternatives choices requirement =
     let
         findWith : (CYOAId -> b -> Bool) -> b -> CYOAId -> Bool
-        findWith member collection name =
-            member name collection
+        findWith member collection powerId =
+            member powerId collection
                 || List.any
-                    (\section ->
-                        List.any
-                            (\power -> power.replaces == Just name && member power.id collection)
-                            section.powers
-                    )
-                    cyoa
+                    (\power -> member power collection)
+                    (Maybe.withDefault [] <| Dict.get powerId alternatives)
     in
     case ( choices, requirement ) of
         ( Simple simple, Requirement name ) ->
@@ -299,7 +306,7 @@ isRequirementSatisfied cyoa choices requirement =
                 got : Int
                 got =
                     List.Extra.count
-                        (isRequirementSatisfied cyoa choices)
+                        (isRequirementSatisfied alternatives choices)
                         names
             in
             got >= required

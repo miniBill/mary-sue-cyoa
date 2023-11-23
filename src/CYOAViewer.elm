@@ -57,7 +57,7 @@ viewGroup chooseTier choices ( power, powers ) =
 
         _ ->
             (power :: powers)
-                |> List.map (viewPower [ alignTop ] chooseTier choices)
+                |> List.map (viewPower [ height fill ] chooseTier choices)
                 |> Theme.row
                     [ width fill
 

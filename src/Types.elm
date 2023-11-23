@@ -212,28 +212,29 @@ requirementToString requirement =
 
 groupPowers : List Power -> List ( Power, List Power )
 groupPowers powers =
-    powers
-        |> List.foldl
-            (\power ( lastGroup, acc ) ->
-                case lastGroup of
-                    Nothing ->
-                        ( Just ( power.id, power, [] ), acc )
+    let
+        ( finalLastGroup, finalAcc ) =
+            powers
+                |> List.foldl
+                    (\power ( lastGroup, acc ) ->
+                        case lastGroup of
+                            Nothing ->
+                                ( Just ( power.id, power, [] ), acc )
 
-                    Just ( lastId, lastPower, lastGroupAcc ) ->
-                        if power.replaces == Just lastId then
-                            ( Just ( lastId, lastPower, power :: lastGroupAcc ), acc )
+                            Just ( lastId, lastPower, lastGroupAcc ) ->
+                                if power.replaces == Just lastId then
+                                    ( Just ( lastId, lastPower, power :: lastGroupAcc ), acc )
 
-                        else
-                            ( Just ( power.id, power, [] )
-                            , ( lastPower, List.reverse lastGroupAcc ) :: acc
-                            )
-            )
-            ( Nothing, [] )
-        |> (\( lastGroup, acc ) ->
-                case lastGroup of
-                    Nothing ->
-                        List.reverse acc
+                                else
+                                    ( Just ( power.id, power, [] )
+                                    , ( lastPower, List.reverse lastGroupAcc ) :: acc
+                                    )
+                    )
+                    ( Nothing, [] )
+    in
+    case finalLastGroup of
+        Nothing ->
+            List.reverse finalAcc
 
-                    Just ( _, lp, lg ) ->
-                        List.reverse (( lp, lg ) :: acc)
-           )
+        Just ( _, lp, lg ) ->
+            List.reverse (( lp, lg ) :: finalAcc)

@@ -58,13 +58,7 @@ viewGroup cyoa chooseTier choices ( power, powers ) =
         _ ->
             (power :: powers)
                 |> List.map (viewPower cyoa [ height fill ] { tiersBelow = True } chooseTier choices)
-                |> Theme.row
-                    [ width fill
-
-                    -- , Border.width 1
-                    -- , Theme.padding
-                    -- , Background.color Theme.almostPaleViolet
-                    ]
+                |> Theme.row [ width fill ]
 
 
 viewMarkdown : String -> Element msg

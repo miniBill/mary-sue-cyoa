@@ -56,16 +56,14 @@ viewGroup chooseTier choices ( power, powers ) =
             viewPower [] chooseTier choices power
 
         _ ->
-            powers
+            (power :: powers)
                 |> List.map (viewPower [] chooseTier choices)
-                |> Theme.wrappedRow [ width fill ]
-                |> List.singleton
-                |> (::) (viewPower [] chooseTier choices power)
-                |> Theme.column
+                |> Theme.row
                     [ width fill
                     , Border.width 1
-                    , Theme.padding
-                    , Background.color Theme.almostPaleViolet
+
+                    -- , Theme.padding
+                    -- , Background.color Theme.almostPaleViolet
                     ]
 
 

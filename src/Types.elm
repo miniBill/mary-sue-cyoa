@@ -5,8 +5,8 @@ import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
 import EnglishNumbers
 import Lamdera exposing (ClientId)
-import Password exposing (Password)
 import Set exposing (Set)
+import Types.Password exposing (Password)
 import Url exposing (Url)
 
 

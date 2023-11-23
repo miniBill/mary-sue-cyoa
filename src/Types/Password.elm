@@ -1,4 +1,4 @@
-module Password exposing (Password, input, isCorrect, password)
+module Types.Password exposing (Password, input, isCorrect, password)
 
 import Element exposing (Element, text)
 import Element.Input as Input

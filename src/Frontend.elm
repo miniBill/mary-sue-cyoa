@@ -1,10 +1,8 @@
 module Frontend exposing (app)
 
-import Admin
 import AppUrl exposing (AppUrl)
 import Browser
 import Browser.Navigation exposing (Key)
-import CYOAViewer
 import Dict
 import Element exposing (Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, link, rgb, row, shrink, text, width)
 import Element.Background as Background
@@ -14,12 +12,15 @@ import Element.Input as Input
 import Html
 import Lamdera exposing (UrlRequest)
 import Maybe.Extra
-import Password exposing (Password)
 import Set
 import Theme
+import Theme.Colors
 import Types exposing (AdminMsg(..), CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..))
+import Types.Password as Password exposing (Password)
 import Url exposing (Url)
 import Url.Builder
+import View.Admin
+import View.CYOA
 
 
 app :
@@ -53,8 +54,8 @@ app =
                     , Element.layout
                         [ width fill
                         , height fill
-                        , Font.color Theme.darkViolet
-                        , Background.color Theme.paleViolet
+                        , Font.color Theme.Colors.darkViolet
+                        , Background.color Theme.Colors.paleViolet
                         ]
                         (view model)
                     ]
@@ -269,7 +270,7 @@ view { inner } =
                     [ viewScore innerModel.choices innerModel.data
                     , viewToggle innerModel.choices
                     ]
-                , CYOAViewer.view (Just ChooseTier) innerModel
+                , View.CYOA.view (Just ChooseTier) innerModel
                 ]
 
         Login login ->
@@ -287,7 +288,7 @@ view { inner } =
 
         Admin admin ->
             Element.map AdminMsg <|
-                Admin.view admin
+                View.Admin.view admin
 
 
 urlToChoices : AppUrl -> Choices

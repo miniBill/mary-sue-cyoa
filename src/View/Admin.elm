@@ -1,19 +1,20 @@
-module Admin exposing (view)
+module View.Admin exposing (view)
 
 import CYOAParser
-import CYOAViewer
 import Dict exposing (Dict)
 import Element exposing (Element, alignRight, alignTop, el, fill, height, inFront, newTabLink, rgb, spacing, text, width)
 import Element.Background as Background
 import Element.Font as Font
 import Element.Input as Input
 import Parser
-import Password exposing (Password)
 import Set
 import Theme
+import Theme.Colors
 import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Section)
+import Types.Password exposing (Password)
 import Url
 import Url.Builder
+import View.CYOA
 
 
 view : { password : Password, cyoas : Dict CYOAId CYOA, inner : InnerAdminModel } -> Element AdminMsg
@@ -45,7 +46,7 @@ view admin =
 viewCreating : CYOAId -> List (Element AdminMsg)
 viewCreating cyoaId =
     [ Input.text
-        [ Background.color Theme.palerViolet
+        [ Background.color Theme.Colors.palerViolet
         ]
         { label = Input.labelAbove [] <| text "Id"
         , text = cyoaId
@@ -68,7 +69,7 @@ viewEditing cyoaId old current preview =
                 [ alignTop
                 , width fill
                 , height <| Element.maximum 6969 fill
-                , Background.color Theme.palerViolet
+                , Background.color Theme.Colors.palerViolet
                 ]
                 { label = Input.labelAbove [] <| text "Content"
                 , text = current
@@ -104,7 +105,7 @@ viewEditing cyoaId old current preview =
                 [ el [] Element.none
                 , case parsed of
                     Ok cyoa ->
-                        CYOAViewer.view Nothing
+                        View.CYOA.view Nothing
                             { choices = Simple Set.empty
                             , data = cyoa
                             }
@@ -175,7 +176,7 @@ viewAdminList cyoas =
                     , text <| "Link:"
                     , newTabLink
                         [ Font.underline
-                        , Font.color Theme.violet
+                        , Font.color Theme.Colors.violet
                         ]
                         { url = url
                         , label = text <| "https://mary-sue.lamdera.app" ++ url

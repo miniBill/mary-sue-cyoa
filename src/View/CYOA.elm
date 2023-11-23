@@ -1,4 +1,4 @@
-module CYOAViewer exposing (view)
+module View.CYOA exposing (view)
 
 import Dict exposing (Dict)
 import Element exposing (Attribute, Element, alignBottom, alignRight, alignTop, centerX, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)

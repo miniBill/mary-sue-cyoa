@@ -2,9 +2,9 @@ module Backend exposing (app)
 
 import Dict exposing (Dict)
 import Lamdera exposing (ClientId)
-import Password
 import Platform.Cmd as Cmd
 import Types exposing (BackendModel, BackendMsg(..), CYOAId, TBAuthenticated(..), ToBackend(..), ToFrontend(..))
+import Types.Password as Password
 
 
 app :

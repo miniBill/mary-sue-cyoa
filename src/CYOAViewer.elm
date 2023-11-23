@@ -1,7 +1,7 @@
 module CYOAViewer exposing (view)
 
 import Dict
-import Element exposing (Attribute, Element, alignRight, alignTop, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
+import Element exposing (Attribute, Element, alignBottom, alignRight, alignTop, centerX, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -53,11 +53,11 @@ viewGroup : Maybe (String -> Maybe Tier -> msg) -> Choices -> ( Power, List Powe
 viewGroup chooseTier choices ( power, powers ) =
     case powers of
         [] ->
-            viewPower [] chooseTier choices power
+            viewPower [] { tiersVertical = False } chooseTier choices power
 
         _ ->
             (power :: powers)
-                |> List.map (viewPower [ height fill ] chooseTier choices)
+                |> List.map (viewPower [ height fill ] { tiersVertical = True } chooseTier choices)
                 |> Theme.row
                     [ width fill
 
@@ -89,8 +89,8 @@ viewMarkdown source =
                     Element.html <| Html.span [] html
 
 
-viewPower : List (Attribute msg) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
-viewPower attrs chooseTier choices power =
+viewPower : List (Attribute msg) -> { tiersVertical : Bool } -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
+viewPower attrs { tiersVertical } chooseTier choices power =
     let
         currentTier : Maybe Tier
         currentTier =
@@ -98,7 +98,11 @@ viewPower attrs chooseTier choices power =
 
         label : List (Element msg) -> Element msg
         label children =
-            Theme.column [ width fill, alignTop ]
+            Theme.column
+                [ width fill
+                , height fill
+                , alignTop
+                ]
                 [ Theme.wrappedRow [ width fill ]
                     [ paragraph [ Font.bold ] [ viewMarkdown power.label ]
                     , el [ alignRight, alignTop ] <|
@@ -128,11 +132,19 @@ viewPower attrs chooseTier choices power =
                             :: List.Extra.intercalate
                                 [ text " and " ]
                                 (List.map (viewRequirement choices currentTier) power.requires)
-                , Theme.row [ width fill ]
-                    (paragraph [ width fill ]
-                        [ viewMarkdown power.description ]
-                        :: children
-                    )
+                , if tiersVertical then
+                    Theme.column [ width fill, height fill ]
+                        [ paragraph [ width fill ]
+                            [ viewMarkdown power.description ]
+                        , Theme.row [ centerX, alignBottom ] children
+                        ]
+
+                  else
+                    Theme.row [ width fill ]
+                        (paragraph [ width fill ]
+                            [ viewMarkdown power.description ]
+                            :: children
+                        )
                 ]
 
         common : List (Attribute msg)
@@ -193,7 +205,8 @@ viewPower attrs chooseTier choices power =
                         )
                         [ S, A, B, C, D, F ]
             in
-            el common <| label tierButtons
+            el common <|
+                label tierButtons
 
         Simple _ ->
             Input.button common

@@ -110,7 +110,7 @@ powerParser =
             , Parser.succeed []
             ]
         |. Parser.spaces
-        |= Parser.getChompedString (Parser.chompUntil "\n")
+        |= Parser.getChompedString (Parser.chompUntil "\n\n")
 
 
 requirementParser : Parser Requirement

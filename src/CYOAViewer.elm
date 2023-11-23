@@ -53,11 +53,11 @@ viewGroup : Maybe (String -> Maybe Tier -> msg) -> Choices -> ( Power, List Powe
 viewGroup chooseTier choices ( power, powers ) =
     case powers of
         [] ->
-            viewPower [] { tiersVertical = False } chooseTier choices power
+            viewPower [] { tiersBelow = False } chooseTier choices power
 
         _ ->
             (power :: powers)
-                |> List.map (viewPower [ height fill ] { tiersVertical = True } chooseTier choices)
+                |> List.map (viewPower [ height fill ] { tiersBelow = True } chooseTier choices)
                 |> Theme.row
                     [ width fill
 
@@ -89,8 +89,8 @@ viewMarkdown source =
                     Element.html <| Html.span [] html
 
 
-viewPower : List (Attribute msg) -> { tiersVertical : Bool } -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
-viewPower attrs { tiersVertical } chooseTier choices power =
+viewPower : List (Attribute msg) -> { tiersBelow : Bool } -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
+viewPower attrs { tiersBelow } chooseTier choices power =
     let
         currentTier : Maybe Tier
         currentTier =
@@ -132,20 +132,26 @@ viewPower attrs { tiersVertical } chooseTier choices power =
                             :: List.Extra.intercalate
                                 [ text " and " ]
                                 (List.map (viewRequirement choices currentTier) power.requires)
-                , if tiersVertical then
-                    Theme.column [ width fill, height fill ]
-                        [ paragraph [ width fill ]
-                            [ viewMarkdown power.description ]
-                        , Theme.row [ centerX, alignBottom ] children
-                        ]
+                , if tiersBelow then
+                    descriptionRows
+                        ++ [ Theme.row [ centerX, alignBottom ] children ]
+                        |> Theme.column [ width fill, height fill ]
 
                   else
                     Theme.row [ width fill ]
-                        (paragraph [ width fill ]
-                            [ viewMarkdown power.description ]
+                        (Theme.column [ width fill, height fill ] descriptionRows
                             :: children
                         )
                 ]
+
+        descriptionRows =
+            power.description
+                |> String.split "\n"
+                |> List.map
+                    (\line ->
+                        paragraph [ width fill ]
+                            [ viewMarkdown line ]
+                    )
 
         common : List (Attribute msg)
         common =

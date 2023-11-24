@@ -63,7 +63,7 @@ viewGroup alternatives chooseTier choices ( power, powers ) =
         _ ->
             (power :: powers)
                 |> List.map (viewPower alternatives [ height fill ] { tiersBelow = True } chooseTier choices)
-                |> Theme.row [ width fill ]
+                |> Theme.wrappedRow [ width fill ]
 
 
 viewMarkdown : String -> Element msg
@@ -137,10 +137,10 @@ viewPower alternatives attrs { tiersBelow } chooseTier choices power =
                         |> Theme.column [ width fill, height fill ]
 
                   else
-                    Theme.row [ width fill ]
-                        (Theme.column [ width fill, height fill ] descriptionRows
-                            :: children
-                        )
+                    Theme.wrappedRow [ width fill ]
+                        [ Theme.column [ width fill, height fill ] descriptionRows
+                        , Theme.row [] children
+                        ]
                 ]
 
         descriptionRows =

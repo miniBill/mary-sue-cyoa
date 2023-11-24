@@ -4,7 +4,7 @@ import AppUrl exposing (AppUrl)
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict
-import Element exposing (Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, link, rgb, row, shrink, text, width)
+import Element exposing (Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, link, rgb, scrollbars, shrink, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -266,7 +266,7 @@ view { inner } =
 
         Loaded innerModel ->
             column [ height fill ]
-                [ row [ Theme.padding, width fill ]
+                [ Theme.wrappedRow [ Theme.padding, width fill ]
                     [ viewScore innerModel.choices innerModel.data
                     , viewToggle innerModel.choices
                     ]
@@ -468,7 +468,7 @@ viewScore choices sections =
                         , view = \( rowTier, _ ) -> tierLabel rowTier
                         }
             }
-                |> Element.table []
+                |> Element.table [ scrollbars ]
 
         Simple _ ->
             let

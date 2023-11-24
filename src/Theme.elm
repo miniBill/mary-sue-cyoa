@@ -7,7 +7,7 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Theme.Colors
-import Types exposing (Tier(..))
+import Types exposing (Tier)
 
 
 padding : Attribute msg

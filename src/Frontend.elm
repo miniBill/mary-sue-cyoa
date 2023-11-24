@@ -395,34 +395,36 @@ viewToggle choices =
 viewScore : Choices -> List Section -> Element FrontendMsg
 viewScore choices sections =
     let
-        sum : List Tier -> List Tier -> ( Int, Int )
-        sum costTiers gainTiers =
+        sumCosts : List Tier -> Int
+        sumCosts costTiers =
+            sumIf (\cost tier -> cost > 0 && List.member tier costTiers)
+
+        sumGains : List Tier -> Int
+        sumGains gainTiers =
+            70 - sumIf (\cost tier -> cost < 0 && List.member tier gainTiers)
+
+        sumIf : (Int -> Tier -> Bool) -> Int
+        sumIf cond =
             sections
-                |> List.map (sumSection costTiers gainTiers)
-                |> List.unzip
-                |> Tuple.mapBoth List.sum (\d -> 70 + List.sum d)
-
-        sumSection : List Tier -> List Tier -> Section -> ( Int, Int )
-        sumSection costTiers gainTiers { powers } =
-            powers
                 |> List.map
-                    (\{ id, cost } ->
-                        case Types.powerTier choices id of
-                            Nothing ->
-                                ( 0, 0 )
+                    (\{ powers } ->
+                        powers
+                            |> List.map
+                                (\{ id, cost } ->
+                                    case Types.powerTier choices id of
+                                        Nothing ->
+                                            0
 
-                            Just tier ->
-                                if cost > 0 && List.member tier costTiers then
-                                    ( cost, 0 )
+                                        Just tier ->
+                                            if cond cost tier then
+                                                cost
 
-                                else if cost < 0 && List.member tier gainTiers then
-                                    ( 0, -cost )
-
-                                else
-                                    ( 0, 0 )
+                                            else
+                                                0
+                                )
+                            |> List.sum
                     )
-                |> List.unzip
-                |> Tuple.mapBoth List.sum List.sum
+                |> List.sum
     in
     case choices of
         Tiered _ ->
@@ -444,7 +446,10 @@ viewScore choices sections =
                         |> Tuple.second
                         |> List.reverse
             in
-            { data = accTiers
+            { data =
+                [ ( "Costs", sumCosts )
+                , ( "Points", sumGains )
+                ]
             , columns =
                 accTiers
                     |> List.map
@@ -452,39 +457,38 @@ viewScore choices sections =
                             { width = shrink
                             , header = tierLabel colTier
                             , view =
-                                \( rowTier, rowAll ) ->
-                                    let
-                                        ( cellSum, cellTotal ) =
-                                            sum rowAll colAll
-                                    in
+                                \( _, rowSum ) ->
                                     el
-                                        (Font.center :: Theme.tierButtonAttrs (cellSum <= cellTotal) rowTier)
-                                        (text <| String.fromInt cellSum ++ "/" ++ String.fromInt cellTotal)
+                                        (Font.center :: Theme.tierButtonAttrs True colTier)
+                                        (text <| String.fromInt <| rowSum colAll)
                             }
                         )
                     |> (::)
                         { width = shrink
                         , header = Element.none
-                        , view = \( rowTier, _ ) -> tierLabel rowTier
+                        , view = \( rowTier, _ ) -> el [ Theme.padding ] <| text rowTier
                         }
             }
                 |> Element.table [ scrollbars ]
 
         Simple _ ->
             let
-                ( s, t ) =
-                    sum
-                        [ S, A, B, C, D, F ]
-                        [ S, A, B, C, D, F ]
+                costs : Int
+                costs =
+                    sumCosts [ S, A, B, C, D, F ]
+
+                total : Int
+                total =
+                    sumGains [ S, A, B, C, D, F ]
             in
             el
-                (if s > t then
+                (if costs > total then
                     [ Font.color (rgb 0.7 0 0), Font.bold ]
 
                  else
                     [ Font.bold ]
                 )
-                (text <| "Score " ++ String.fromInt s ++ "/" ++ String.fromInt t)
+                (text <| "Score " ++ String.fromInt costs ++ "/" ++ String.fromInt total)
 
 
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )

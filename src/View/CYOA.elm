@@ -1,7 +1,7 @@
 module View.CYOA exposing (view)
 
 import Dict exposing (Dict)
-import Element exposing (Attribute, Element, alignBottom, alignRight, alignTop, centerX, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
+import Element exposing (Attribute, DeviceClass, Element, alignBottom, alignRight, alignTop, centerX, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -16,8 +16,8 @@ import Theme
 import Types exposing (CYOAId, Choices(..), Power, Requirement(..), Section, Tier(..))
 
 
-view : Maybe (String -> Maybe Tier -> msg) -> { a | choices : Choices, data : Types.CYOA } -> Element msg
-view chooseTier innerModel =
+view : DeviceClass -> Maybe (String -> Maybe Tier -> msg) -> { a | choices : Choices, data : Types.CYOA } -> Element msg
+view deviceClass chooseTier innerModel =
     let
         alternatives : Dict CYOAId (List String)
         alternatives =
@@ -34,13 +34,13 @@ view chooseTier innerModel =
         , height fill
         ]
         (List.map
-            (viewSection alternatives chooseTier innerModel.choices)
+            (viewSection deviceClass alternatives chooseTier innerModel.choices)
             innerModel.data
         )
 
 
-viewSection : Dict CYOAId (List String) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Section -> Element msg
-viewSection alternatives chooseTier choices section =
+viewSection : DeviceClass -> Dict CYOAId (List String) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Section -> Element msg
+viewSection deviceClass alternatives chooseTier choices section =
     Theme.column
         [ Border.width 1
         , Theme.padding
@@ -49,20 +49,20 @@ viewSection alternatives chooseTier choices section =
         (paragraph [ Font.bold ] [ viewMarkdown section.name ]
             :: List.map (\line -> paragraph [] [ viewMarkdown line ]) section.description
             ++ List.map
-                (viewGroup alternatives chooseTier choices)
+                (viewGroup deviceClass alternatives chooseTier choices)
                 (Types.groupPowers section.powers)
         )
 
 
-viewGroup : Dict CYOAId (List String) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> ( Power, List Power ) -> Element msg
-viewGroup alternatives chooseTier choices ( power, powers ) =
+viewGroup : DeviceClass -> Dict CYOAId (List String) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> ( Power, List Power ) -> Element msg
+viewGroup deviceClass alternatives chooseTier choices ( power, powers ) =
     case powers of
         [] ->
-            viewPower alternatives [] { tiersBelow = False } chooseTier choices power
+            viewPower deviceClass alternatives [] { tiersBelow = False } chooseTier choices power
 
         _ ->
             (power :: powers)
-                |> List.map (viewPower alternatives [ height fill ] { tiersBelow = True } chooseTier choices)
+                |> List.map (viewPower deviceClass alternatives [ height fill ] { tiersBelow = True } chooseTier choices)
                 |> Theme.wrappedRow [ width fill ]
 
 
@@ -88,8 +88,8 @@ viewMarkdown source =
                     Element.html <| Html.span [] html
 
 
-viewPower : Dict CYOAId (List String) -> List (Attribute msg) -> { tiersBelow : Bool } -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
-viewPower alternatives attrs { tiersBelow } chooseTier choices power =
+viewPower : DeviceClass -> Dict CYOAId (List String) -> List (Attribute msg) -> { tiersBelow : Bool } -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
+viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices power =
     let
         currentTier : Maybe Tier
         currentTier =
@@ -136,11 +136,16 @@ viewPower alternatives attrs { tiersBelow } chooseTier choices power =
                         ++ [ Theme.row [ centerX, alignBottom ] children ]
                         |> Theme.column [ width fill, height fill ]
 
-                  else
-                    Theme.wrappedRow [ width fill ]
+                  else if deviceClass == Element.Phone then
+                    Theme.column [ width fill ]
                         [ Theme.column [ width fill, height fill ] descriptionRows
-                        , Theme.row [] children
+                        , Theme.row [ centerX, alignBottom ] children
                         ]
+
+                  else
+                    Theme.row [ width fill ] <|
+                        Theme.column [ width fill, height fill ] descriptionRows
+                            :: children
                 ]
 
         descriptionRows =

@@ -3,6 +3,7 @@ module Types exposing (AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId,
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
+import Element exposing (DeviceClass)
 import EnglishNumbers
 import Lamdera exposing (ClientId)
 import Set exposing (Set)
@@ -13,6 +14,7 @@ import Url exposing (Url)
 type alias FrontendModel =
     { key : Key
     , inner : InnerModel
+    , deviceClass : DeviceClass
     }
 
 
@@ -114,6 +116,7 @@ type FrontendMsg
     | Password Password
     | TryLogin
     | AdminMsg AdminMsg
+    | Resize Int Int
 
 
 type AdminMsg

@@ -2,17 +2,21 @@ module Frontend exposing (app)
 
 import AppUrl exposing (AppUrl)
 import Browser
+import Browser.Dom
+import Browser.Events
 import Browser.Navigation exposing (Key)
 import Dict
-import Element exposing (Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, link, rgb, scrollbars, shrink, text, width)
+import Element exposing (DeviceClass(..), Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, link, rgb, scrollbarX, scrollbars, shrink, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
+import Element.Lazy
 import Html
 import Lamdera exposing (UrlRequest)
 import Maybe.Extra
 import Set
+import Task
 import Theme
 import Theme.Colors
 import Types exposing (AdminMsg(..), CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..))
@@ -57,7 +61,7 @@ app =
                         , Font.color Theme.Colors.darkViolet
                         , Background.color Theme.Colors.paleViolet
                         ]
-                        (view model)
+                        (Element.Lazy.lazy2 view model.deviceClass model.inner)
                     ]
                 }
         , update = update
@@ -195,8 +199,9 @@ init url key =
         [] ->
             ( { key = key
               , inner = Homepage
+              , deviceClass = Desktop
               }
-            , Cmd.none
+            , measureScreen
             )
 
         [ "admin" ] ->
@@ -224,8 +229,9 @@ init url key =
             in
             ( { key = key
               , inner = Login inner
+              , deviceClass = Desktop
               }
-            , cmd
+            , Cmd.batch [ cmd, measureScreen ]
             )
 
         _ ->
@@ -236,13 +242,28 @@ init url key =
             in
             ( { key = key
               , inner = Loading cyoaId <| urlToChoices appUrl
+              , deviceClass = Desktop
               }
-            , Lamdera.sendToBackend <| TBGetCYOA cyoaId
+            , Cmd.batch
+                [ Lamdera.sendToBackend <| TBGetCYOA cyoaId
+                , measureScreen
+                ]
             )
 
 
-view : FrontendModel -> Element FrontendMsg
-view { inner } =
+measureScreen : Cmd FrontendMsg
+measureScreen =
+    Browser.Dom.getViewport
+        |> Task.perform
+            (\{ viewport } ->
+                Resize
+                    (floor viewport.width)
+                    (floor viewport.height)
+            )
+
+
+view : DeviceClass -> InnerModel -> Element FrontendMsg
+view deviceClass inner =
     case inner of
         Homepage ->
             link
@@ -265,12 +286,28 @@ view { inner } =
                 }
 
         Loaded innerModel ->
-            column [ height fill ]
-                [ Theme.wrappedRow [ Theme.padding, width fill ]
+            let
+                isTiered : Bool
+                isTiered =
+                    case innerModel.choices of
+                        Tiered _ ->
+                            True
+
+                        Simple _ ->
+                            False
+            in
+            column [ height fill, width fill ]
+                [ (if deviceClass == Element.Phone && isTiered then
+                    Theme.column
+
+                   else
+                    Theme.row
+                  )
+                    [ Theme.padding, width fill ]
                     [ viewScore innerModel.choices innerModel.data
                     , viewToggle innerModel.choices
                     ]
-                , View.CYOA.view (Just ChooseTier) innerModel
+                , View.CYOA.view deviceClass (Just ChooseTier) innerModel
                 ]
 
         Login login ->
@@ -288,7 +325,7 @@ view { inner } =
 
         Admin admin ->
             Element.map AdminMsg <|
-                View.Admin.view admin
+                View.Admin.view deviceClass admin
 
 
 urlToChoices : AppUrl -> Choices
@@ -469,7 +506,11 @@ viewScore choices sections =
                         , view = \( rowTier, _ ) -> el [ Theme.padding ] <| text rowTier
                         }
             }
-                |> Element.table [ scrollbars ]
+                |> Element.table
+                    [ scrollbarX
+                    , height <| Element.minimum 126 shrink
+                    , width fill
+                    ]
 
         Simple _ ->
             let
@@ -494,6 +535,13 @@ viewScore choices sections =
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 update msg model =
     case ( msg, model.inner ) of
+        ( Resize w h, _ ) ->
+            ( { model
+                | deviceClass = (Element.classifyDevice { height = h, width = w }).class
+              }
+            , Cmd.none
+            )
+
         ( ToggleKind kind, Loaded inner ) ->
             let
                 newChoices : Choices
@@ -637,4 +685,4 @@ adminUpdate msg =
 
 subscriptions : FrontendModel -> Sub FrontendMsg
 subscriptions _ =
-    Sub.none
+    Browser.Events.onResize Resize

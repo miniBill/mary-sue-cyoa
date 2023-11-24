@@ -2,7 +2,7 @@ module View.Admin exposing (view)
 
 import CYOAParser
 import Dict exposing (Dict)
-import Element exposing (Element, alignRight, alignTop, el, fill, height, inFront, newTabLink, rgb, spacing, text, width)
+import Element exposing (DeviceClass, Element, alignRight, alignTop, el, fill, height, inFront, newTabLink, rgb, spacing, text, width)
 import Element.Background as Background
 import Element.Font as Font
 import Element.Input as Input
@@ -17,8 +17,8 @@ import Url.Builder
 import View.CYOA
 
 
-view : { password : Password, cyoas : Dict CYOAId CYOA, inner : InnerAdminModel } -> Element AdminMsg
-view admin =
+view : DeviceClass -> { password : Password, cyoas : Dict CYOAId CYOA, inner : InnerAdminModel } -> Element AdminMsg
+view deviceClass admin =
     (case admin.inner of
         Listing ->
             viewAdminList admin.cyoas
@@ -27,7 +27,7 @@ view admin =
             viewCreating cyoaId
 
         Editing cyoaId old current preview ->
-            viewEditing cyoaId old current preview
+            viewEditing deviceClass cyoaId old current preview
 
         Renaming _ _ ->
             [ Theme.centralMessage "branch 'Renaming _ _' not implemented" ]
@@ -60,8 +60,8 @@ viewCreating cyoaId =
     ]
 
 
-viewEditing : CYOAId -> String -> String -> Bool -> List (Element AdminMsg)
-viewEditing cyoaId old current preview =
+viewEditing : DeviceClass -> CYOAId -> String -> String -> Bool -> List (Element AdminMsg)
+viewEditing deviceClass cyoaId old current preview =
     let
         inputBox : Element AdminMsg
         inputBox =
@@ -105,7 +105,8 @@ viewEditing cyoaId old current preview =
                 [ el [] Element.none
                 , case parsed of
                     Ok cyoa ->
-                        View.CYOA.view Nothing
+                        View.CYOA.view deviceClass
+                            Nothing
                             { choices = Simple Set.empty
                             , data = cyoa
                             }

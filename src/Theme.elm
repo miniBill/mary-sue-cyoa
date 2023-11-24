@@ -1,7 +1,6 @@
 module Theme exposing (button, centralMessage, column, padding, rhythm, row, spacing, tierButtonAttrs, wrappedRow)
 
-import Color
-import Element exposing (Attribute, Color, Element, centerX, centerY, el, rgb, text)
+import Element exposing (Attribute, Element, centerX, centerY, el, rgb, text)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -84,36 +83,10 @@ button attrs config =
 tierButtonAttrs : Bool -> Tier -> List (Attribute msg)
 tierButtonAttrs selected tier =
     [ if selected then
-        Background.color <| colorToColor <| Theme.Colors.tierToColor tier
+        Background.color <| Theme.Colors.colorToColor <| Theme.Colors.tierToColor tier
 
       else
-        Background.color <| colorToColor <| hslaMap (\hsla -> { hsla | saturation = 0.2 }) <| Theme.Colors.tierToColor tier
+        Background.color <| Theme.Colors.colorToColor <| Theme.Colors.hslaMap (\hsla -> { hsla | saturation = 0.2 }) <| Theme.Colors.tierToColor tier
     , padding
     , Border.width 1
     ]
-
-
-hslaMap : (Hsla -> Hsla) -> Color.Color -> Color.Color
-hslaMap f c =
-    c
-        |> Color.toHsla
-        |> f
-        |> Color.fromHsla
-
-
-type alias Hsla =
-    { alpha : Float
-    , lightness : Float
-    , hue : Float
-    , saturation : Float
-    }
-
-
-colorToColor : Color.Color -> Color
-colorToColor c =
-    let
-        rgba : { red : Float, green : Float, blue : Float, alpha : Float }
-        rgba =
-            Color.toRgba c
-    in
-    Element.rgba rgba.red rgba.green rgba.blue rgba.alpha

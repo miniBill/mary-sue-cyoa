@@ -1,7 +1,7 @@
 module View.CYOA exposing (view)
 
 import Dict exposing (Dict)
-import Element exposing (Attribute, DeviceClass, Element, alignBottom, alignRight, alignTop, centerX, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
+import Element exposing (Attribute, Color, DeviceClass, Element, alignBottom, alignRight, alignTop, centerX, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -13,6 +13,7 @@ import Markdown.Parser
 import Markdown.Renderer
 import Set
 import Theme
+import Theme.Colors
 import Types exposing (CYOAId, Choices(..), Power, Requirement(..), Section, Tier(..))
 
 
@@ -102,7 +103,14 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices power
                 , height fill
                 , alignTop
                 ]
-                [ Theme.wrappedRow [ width fill ]
+                [ Theme.wrappedRow
+                    [ width fill
+                    , if currentTier == Nothing || allRequirementsSatisfied then
+                        width fill
+
+                      else
+                        Font.color <| rgb 1 0 0
+                    ]
                     [ paragraph [ Font.bold ] [ viewMarkdown power.label ]
                     , el [ alignRight, alignTop ] <|
                         text <|
@@ -160,11 +168,25 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices power
 
         common : List (Attribute msg)
         common =
-            [ Theme.padding
-            , Border.width 1
-            , width fill
-            , Background.color backgroundColor
-            ]
+            (if currentTier == Nothing || allRequirementsSatisfied then
+                [ Border.width 1
+                , Background.color backgroundColor
+                ]
+
+             else
+                [ Border.color <| rgb 1 0 0
+                , Border.width 2
+                , case choices of
+                    Tiered _ ->
+                        Background.color <| rgb 0.6 0.6 0.6
+
+                    Simple _ ->
+                        Background.color <| rgb 1 0.6 0.6
+                ]
+            )
+                ++ [ Theme.padding
+                   , width fill
+                   ]
                 ++ attrs
 
         toMsg : Maybe Tier -> Maybe msg
@@ -175,20 +197,32 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices power
         allRequirementsSatisfied =
             List.all (isRequirementSatisfied alternatives choices) power.requires
 
-        backgroundColor : Element.Color
+        backgroundColor : Color
         backgroundColor =
-            if currentTier == Nothing then
-                if allRequirementsSatisfied then
-                    rgb 0.9 0.9 1
+            case choices of
+                Tiered _ ->
+                    case currentTier of
+                        Just tier ->
+                            if allRequirementsSatisfied then
+                                Theme.Colors.colorToColor <|
+                                    Theme.Colors.hslaMap (\hsla -> { hsla | lightness = 0.85 }) <|
+                                        Theme.Colors.tierToColor tier
 
-                else
-                    rgb 0.9 0.9 0.9
+                            else
+                                Theme.Colors.missingRequisites
 
-            else if allRequirementsSatisfied then
-                rgb 0.7 1 0.7
+                        Nothing ->
+                            Theme.Colors.unselectedBackground
 
-            else
-                rgb 1 0.7 0.7
+                Simple _ ->
+                    if currentTier == Nothing then
+                        Theme.Colors.unselectedBackground
+
+                    else if allRequirementsSatisfied then
+                        rgb 0.7 1 0.7
+
+                    else
+                        Theme.Colors.missingRequisites
     in
     case choices of
         Tiered _ ->

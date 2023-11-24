@@ -6,7 +6,7 @@ import Browser.Dom
 import Browser.Events
 import Browser.Navigation exposing (Key)
 import Dict
-import Element exposing (DeviceClass(..), Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, link, rgb, scrollbarX, scrollbars, shrink, text, width)
+import Element exposing (DeviceClass(..), Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, link, rgb, scrollbarX, shrink, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font

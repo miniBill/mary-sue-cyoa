@@ -94,27 +94,6 @@ viewEditing deviceClass cyoaId old current preview =
                 , label = text "Save"
                 }
 
-        previewBox : Element msg
-        previewBox =
-            Theme.column
-                [ alignTop
-                , width fill
-                , height fill
-                , spacing 26
-                ]
-                [ el [] Element.none
-                , case parsed of
-                    Ok cyoa ->
-                        View.CYOA.view deviceClass
-                            Nothing
-                            { choices = Simple Set.empty
-                            , data = cyoa
-                            }
-
-                    Err e ->
-                        errorView e
-                ]
-
         errorView : List Parser.DeadEnd -> Element msg
         errorView e =
             el [ Font.color <| rgb 1 0 0 ] <|
@@ -144,6 +123,28 @@ viewEditing deviceClass cyoaId old current preview =
         [ el [ Font.bold ] <| text <| "Editing " ++ cyoaId
         ]
     , if preview then
+        let
+            previewBox : Element msg
+            previewBox =
+                Theme.column
+                    [ alignTop
+                    , width fill
+                    , height fill
+                    , spacing 26
+                    ]
+                    [ el [] Element.none
+                    , case parsed of
+                        Ok cyoa ->
+                            View.CYOA.view deviceClass
+                                Nothing
+                                { choices = Simple Set.empty
+                                , data = cyoa
+                                }
+
+                        Err e ->
+                            errorView e
+                    ]
+        in
         Theme.row [ width fill, height fill ]
             [ inputBox
             , previewBox

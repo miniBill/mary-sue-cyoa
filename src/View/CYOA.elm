@@ -148,6 +148,7 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices power
                             :: children
                 ]
 
+        descriptionRows : List (Element msg)
         descriptionRows =
             power.description
                 |> String.split "\n"

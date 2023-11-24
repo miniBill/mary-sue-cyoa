@@ -92,6 +92,7 @@ powerParser =
                         |> List.map
                             (\s ->
                                 let
+                                    cut : String
                                     cut =
                                         if String.endsWith "." s then
                                             String.dropRight 1 s

@@ -12,6 +12,11 @@ mainParser =
         |. Parser.end
 
 
+getChompedTrimmed : Parser a -> Parser String
+getChompedTrimmed parser =
+    Parser.map String.trim <| Parser.getChompedString parser
+
+
 parseSection : Parser Section
 parseSection =
     Parser.succeed
@@ -21,7 +26,7 @@ parseSection =
             , powers = powers
             }
         )
-        |= Parser.getChompedString (Parser.chompUntil "\n")
+        |= getChompedTrimmed (Parser.chompUntil "\n")
         |. Parser.spaces
         |= many nonNameParser
         |. Parser.spaces
@@ -31,7 +36,7 @@ parseSection =
 nonNameParser : Parser String
 nonNameParser =
     Parser.chompUntil "\n"
-        |> Parser.getChompedString
+        |> getChompedTrimmed
         |> Parser.backtrackable
         |> Parser.andThen
             (\s ->
@@ -55,9 +60,11 @@ powerParser =
             , description = description
             }
         )
-        |. Parser.token "Name: "
-        |= Parser.getChompedString (Parser.chompUntil " - ")
+        |. Parser.token "Name:"
+        |. Parser.spaces
+        |= getChompedTrimmed (Parser.chompUntil " - ")
         |. Parser.token " - "
+        |. Parser.spaces
         |= Parser.oneOf
             [ Parser.succeed identity
                 |. Parser.token "Cost:"
@@ -69,19 +76,21 @@ powerParser =
                 |. Parser.token "+"
                 |= Parser.int
             ]
-        |. Parser.token " ☐"
+        |. Parser.spaces
+        |. Parser.token "☐"
         |. Parser.spaces
         |= Parser.oneOf
             [ Parser.succeed Just
-                |. Parser.token "Id: "
-                |= Parser.getChompedString (Parser.chompUntil "\n")
+                |. Parser.token "Id:"
+                |. Parser.spaces
+                |= getChompedTrimmed (Parser.chompUntil "\n")
             , Parser.succeed Nothing
             ]
         |. Parser.spaces
         |= Parser.oneOf
             [ Parser.succeed Just
                 |. Parser.symbol "(Replaces "
-                |= Parser.getChompedString (Parser.chompUntil ")")
+                |= getChompedTrimmed (Parser.chompUntil ")")
                 |. Parser.token ")"
             , Parser.succeed Nothing
             ]
@@ -109,26 +118,28 @@ powerParser =
                             )
                 )
                 |. Parser.token "(Requires "
-                |= Parser.getChompedString (Parser.chompUntil ")")
+                |= getChompedTrimmed (Parser.chompUntil ")")
                 |. Parser.token ")"
             , Parser.succeed []
             ]
         |. Parser.spaces
-        |= Parser.getChompedString (Parser.chompUntil "\n\n")
+        |= getChompedTrimmed (Parser.chompUntil "\n\n")
 
 
 requirementParser : Parser Requirement
 requirementParser =
-    Parser.succeed (\num reqs -> AtLeastXOf num ((List.map Requirement << String.split ", ") reqs))
+    Parser.succeed (\num reqs -> AtLeastXOf num ((List.map (Requirement << String.trim) << String.split ", ") reqs))
         |. Parser.symbol "at least "
+        |. Parser.spaces
         |= numberParser
+        |. Parser.spaces
         |. Parser.symbol " of: "
-        |= Parser.getChompedString (Parser.chompUntilEndOr ")")
+        |= getChompedTrimmed (Parser.chompUntilEndOr ")")
 
 
 numberParser : Parser Int
 numberParser =
-    Parser.getChompedString (Parser.chompWhile Char.isAlphaNum)
+    getChompedTrimmed (Parser.chompWhile Char.isAlphaNum)
         |> Parser.andThen
             (\s ->
                 case String.toInt s of

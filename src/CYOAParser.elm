@@ -60,10 +60,13 @@ powerParser =
         |. Parser.token " - "
         |= Parser.oneOf
             [ Parser.succeed identity
-                |. Parser.token "Cost: "
+                |. Parser.token "Cost:"
+                |. Parser.spaces
                 |= Parser.int
             , Parser.succeed negate
-                |. Parser.token "Grants: +"
+                |. Parser.token "Grants:"
+                |. Parser.spaces
+                |. Parser.token "+"
                 |= Parser.int
             ]
         |. Parser.token " ☐"

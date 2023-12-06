@@ -152,6 +152,7 @@ updateFromBackend msg ({ inner } as model) =
                                     { cyoaId = cyoaId
                                     , choices = choices
                                     , data = cyoa
+                                    , compact = False
                                     }
 
                             else
@@ -305,7 +306,7 @@ view deviceClass inner =
                   )
                     [ Theme.padding, width fill ]
                     [ viewScore innerModel.choices innerModel.data
-                    , viewToggle innerModel.choices
+                    , viewToggles innerModel.choices innerModel.compact
                     ]
                 , View.CYOA.view deviceClass (Just ChooseTier) innerModel
                 ]
@@ -409,24 +410,46 @@ tieredKey =
     "__tiered__"
 
 
-viewToggle : Choices -> Element FrontendMsg
-viewToggle choices =
-    { onChange = ToggleKind
-    , label = Input.labelHidden "Kind"
-    , selected =
-        case choices of
-            Tiered _ ->
-                Just TieredKind
+viewToggles : Choices -> Bool -> Element FrontendMsg
+viewToggles choices compact =
+    let
+        kindRadio : Element FrontendMsg
+        kindRadio =
+            Input.radioRow
+                [ Theme.spacing
+                , alignRight
+                ]
+                { onChange = ToggleKind
+                , label = Input.labelHidden "Kind"
+                , selected =
+                    case choices of
+                        Tiered _ ->
+                            Just TieredKind
 
-            Simple _ ->
-                Just SimpleKind
-    , options =
-        [ Input.option SimpleKind (text "Simple")
-        , Input.option TieredKind (text "Tiered")
+                        Simple _ ->
+                            Just SimpleKind
+                , options =
+                    [ Input.option SimpleKind (text "Simple")
+                    , Input.option TieredKind (text "Tiered")
+                    ]
+                }
+
+        compactCheck : Element FrontendMsg
+        compactCheck =
+            Input.checkbox
+                [ Theme.spacing
+                , alignRight
+                ]
+                { checked = compact
+                , onChange = Compact
+                , label = Input.labelRight [] <| text "Hide unselected options"
+                , icon = Input.defaultCheckbox
+                }
+    in
+    Theme.column [ alignRight, alignTop ]
+        [ kindRadio
+        , compactCheck
         ]
-    }
-        |> Input.radioRow [ Theme.spacing ]
-        |> el [ alignRight, alignTop ]
 
 
 viewScore : Choices -> List Section -> Element FrontendMsg
@@ -570,6 +593,12 @@ update msg model =
             )
 
         ( ToggleKind _, _ ) ->
+            ( model, Cmd.none )
+
+        ( Compact compact, Loaded inner ) ->
+            ( { model | inner = Loaded { inner | compact = compact } }, Cmd.none )
+
+        ( Compact _, _ ) ->
             ( model, Cmd.none )
 
         ( ChooseTier name tier, Loaded inner ) ->

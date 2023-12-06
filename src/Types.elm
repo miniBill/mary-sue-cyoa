@@ -34,6 +34,7 @@ type InnerModel
     | Loaded
         { cyoaId : CYOAId
         , choices : Choices
+        , compact : Bool
         , data : CYOA
         }
 
@@ -117,6 +118,7 @@ type FrontendMsg
     | TryLogin
     | AdminMsg AdminMsg
     | Resize Int Int
+    | Compact Bool
 
 
 type AdminMsg

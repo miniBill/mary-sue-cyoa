@@ -17,7 +17,7 @@ import Theme.Colors
 import Types exposing (CYOAId, Choices(..), Power, Requirement(..), Section, Tier(..))
 
 
-view : DeviceClass -> Maybe (String -> Maybe Tier -> msg) -> { a | choices : Choices, data : Types.CYOA } -> Element msg
+view : DeviceClass -> Maybe (String -> Maybe Tier -> msg) -> { a | choices : Choices, data : Types.CYOA, compact : Bool } -> Element msg
 view deviceClass chooseTier innerModel =
     let
         alternatives : Dict CYOAId (List String)
@@ -35,13 +35,13 @@ view deviceClass chooseTier innerModel =
         , height fill
         ]
         (List.map
-            (viewSection deviceClass alternatives chooseTier innerModel.choices)
+            (viewSection deviceClass alternatives chooseTier innerModel.choices innerModel.compact)
             innerModel.data
         )
 
 
-viewSection : DeviceClass -> Dict CYOAId (List String) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Section -> Element msg
-viewSection deviceClass alternatives chooseTier choices section =
+viewSection : DeviceClass -> Dict CYOAId (List String) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Bool -> Section -> Element msg
+viewSection deviceClass alternatives chooseTier choices compact section =
     Theme.column
         [ Border.width 1
         , Theme.padding
@@ -50,20 +50,20 @@ viewSection deviceClass alternatives chooseTier choices section =
         (paragraph [ Font.bold ] [ viewMarkdown section.name ]
             :: List.map (\line -> paragraph [] [ viewMarkdown line ]) section.description
             ++ List.map
-                (viewGroup deviceClass alternatives chooseTier choices)
+                (viewGroup deviceClass alternatives chooseTier choices compact)
                 (Types.groupPowers section.powers)
         )
 
 
-viewGroup : DeviceClass -> Dict CYOAId (List String) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> ( Power, List Power ) -> Element msg
-viewGroup deviceClass alternatives chooseTier choices ( power, powers ) =
+viewGroup : DeviceClass -> Dict CYOAId (List String) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Bool -> ( Power, List Power ) -> Element msg
+viewGroup deviceClass alternatives chooseTier choices compact ( power, powers ) =
     case powers of
         [] ->
-            viewPower deviceClass alternatives [] { tiersBelow = False } chooseTier choices power
+            viewPower deviceClass alternatives [] { tiersBelow = False } chooseTier choices compact power
 
         _ ->
             (power :: powers)
-                |> List.map (viewPower deviceClass alternatives [ height fill ] { tiersBelow = True } chooseTier choices)
+                |> List.map (viewPower deviceClass alternatives [ height fill ] { tiersBelow = True } chooseTier choices compact)
                 |> Theme.wrappedRow [ width fill ]
 
 
@@ -89,181 +89,186 @@ viewMarkdown source =
                     Element.html <| Html.span [] html
 
 
-viewPower : DeviceClass -> Dict CYOAId (List String) -> List (Attribute msg) -> { tiersBelow : Bool } -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Power -> Element msg
-viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices power =
+viewPower : DeviceClass -> Dict CYOAId (List String) -> List (Attribute msg) -> { tiersBelow : Bool } -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Bool -> Power -> Element msg
+viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compact power =
     let
         currentTier : Maybe Tier
         currentTier =
             Types.powerTier choices power.id
+    in
+    if compact && currentTier == Nothing then
+        Element.none
 
-        label : List (Element msg) -> Element msg
-        label children =
-            Theme.column
-                [ width fill
-                , height fill
-                , alignTop
-                ]
-                [ Theme.wrappedRow
+    else
+        let
+            label : List (Element msg) -> Element msg
+            label children =
+                Theme.column
                     [ width fill
-                    , if currentTier == Nothing || allRequirementsSatisfied then
-                        width fill
-
-                      else
-                        Font.color <| rgb 1 0 0
+                    , height fill
+                    , alignTop
                     ]
-                    [ paragraph [ Font.bold ] [ viewMarkdown power.label ]
-                    , el [ alignRight, alignTop ] <|
-                        text <|
-                            if power.cost >= 0 then
-                                "Cost: " ++ String.fromInt power.cost
+                    [ Theme.wrappedRow
+                        [ width fill
+                        , if currentTier == Nothing || allRequirementsSatisfied then
+                            width fill
 
-                            else
-                                "Grants: +" ++ String.fromInt -power.cost
-                    ]
-                , case power.replaces of
-                    Nothing ->
+                          else
+                            Font.color <| rgb 1 0 0
+                        ]
+                        [ paragraph [ Font.bold ] [ viewMarkdown power.label ]
+                        , el [ alignRight, alignTop ] <|
+                            text <|
+                                if power.cost >= 0 then
+                                    "Cost: " ++ String.fromInt power.cost
+
+                                else
+                                    "Grants: +" ++ String.fromInt -power.cost
+                        ]
+                    , case power.replaces of
+                        Nothing ->
+                            Element.none
+
+                        Just replaces ->
+                            paragraph [ Font.italic ] <|
+                                [ text "(Replaces "
+                                , text replaces
+                                , text ")"
+                                ]
+                    , if List.isEmpty power.requires then
                         Element.none
 
-                    Just replaces ->
+                      else
                         paragraph [ Font.italic ] <|
-                            [ text "(Replaces "
-                            , text replaces
-                            , text ")"
+                            text "Requires: "
+                                :: List.Extra.intercalate
+                                    [ text " and " ]
+                                    (List.map (viewRequirement alternatives choices currentTier) power.requires)
+                    , if tiersBelow then
+                        descriptionRows
+                            ++ [ Theme.row [ centerX, alignBottom ] children ]
+                            |> Theme.column [ width fill, height fill ]
+
+                      else if deviceClass == Element.Phone then
+                        Theme.column [ width fill ]
+                            [ Theme.column [ width fill, height fill ] descriptionRows
+                            , Theme.row [ centerX, alignBottom ] children
                             ]
-                , if List.isEmpty power.requires then
-                    Element.none
 
-                  else
-                    paragraph [ Font.italic ] <|
-                        text "Requires: "
-                            :: List.Extra.intercalate
-                                [ text " and " ]
-                                (List.map (viewRequirement alternatives choices currentTier) power.requires)
-                , if tiersBelow then
-                    descriptionRows
-                        ++ [ Theme.row [ centerX, alignBottom ] children ]
-                        |> Theme.column [ width fill, height fill ]
+                      else
+                        Theme.row [ width fill ] <|
+                            Theme.column [ width fill, height fill ] descriptionRows
+                                :: children
+                    ]
 
-                  else if deviceClass == Element.Phone then
-                    Theme.column [ width fill ]
-                        [ Theme.column [ width fill, height fill ] descriptionRows
-                        , Theme.row [ centerX, alignBottom ] children
-                        ]
+            descriptionRows : List (Element msg)
+            descriptionRows =
+                power.description
+                    |> String.split "\n"
+                    |> List.map
+                        (\line ->
+                            paragraph [ width fill ]
+                                [ viewMarkdown line ]
+                        )
 
-                  else
-                    Theme.row [ width fill ] <|
-                        Theme.column [ width fill, height fill ] descriptionRows
-                            :: children
-                ]
+            common : List (Attribute msg)
+            common =
+                (if currentTier == Nothing || allRequirementsSatisfied then
+                    [ Border.width 1
+                    , Background.color backgroundColor
+                    ]
 
-        descriptionRows : List (Element msg)
-        descriptionRows =
-            power.description
-                |> String.split "\n"
-                |> List.map
-                    (\line ->
-                        paragraph [ width fill ]
-                            [ viewMarkdown line ]
-                    )
+                 else
+                    [ Border.color <| rgb 1 0 0
+                    , Border.width 2
+                    , case choices of
+                        Tiered _ ->
+                            Background.color <| rgb 0.6 0.6 0.6
 
-        common : List (Attribute msg)
-        common =
-            (if currentTier == Nothing || allRequirementsSatisfied then
-                [ Border.width 1
-                , Background.color backgroundColor
-                ]
+                        Simple _ ->
+                            Background.color <| rgb 1 0.6 0.6
+                    ]
+                )
+                    ++ [ Theme.padding
+                       , width fill
+                       ]
+                    ++ attrs
 
-             else
-                [ Border.color <| rgb 1 0 0
-                , Border.width 2
-                , case choices of
+            toMsg : Maybe Tier -> Maybe msg
+            toMsg tier =
+                Maybe.map (\t -> t power.id tier) chooseTier
+
+            allRequirementsSatisfied : Bool
+            allRequirementsSatisfied =
+                List.all (isRequirementSatisfied alternatives choices) power.requires
+
+            backgroundColor : Color
+            backgroundColor =
+                case choices of
                     Tiered _ ->
-                        Background.color <| rgb 0.6 0.6 0.6
+                        case currentTier of
+                            Just tier ->
+                                if allRequirementsSatisfied then
+                                    Theme.Colors.colorToColor <|
+                                        Theme.Colors.hslaMap (\hsla -> { hsla | lightness = 0.85 }) <|
+                                            Theme.Colors.tierToColor tier
+
+                                else
+                                    Theme.Colors.missingRequisites
+
+                            Nothing ->
+                                Theme.Colors.unselectedBackground
 
                     Simple _ ->
-                        Background.color <| rgb 1 0.6 0.6
-                ]
-            )
-                ++ [ Theme.padding
-                   , width fill
-                   ]
-                ++ attrs
-
-        toMsg : Maybe Tier -> Maybe msg
-        toMsg tier =
-            Maybe.map (\t -> t power.id tier) chooseTier
-
-        allRequirementsSatisfied : Bool
-        allRequirementsSatisfied =
-            List.all (isRequirementSatisfied alternatives choices) power.requires
-
-        backgroundColor : Color
-        backgroundColor =
-            case choices of
-                Tiered _ ->
-                    case currentTier of
-                        Just tier ->
-                            if allRequirementsSatisfied then
-                                Theme.Colors.colorToColor <|
-                                    Theme.Colors.hslaMap (\hsla -> { hsla | lightness = 0.85 }) <|
-                                        Theme.Colors.tierToColor tier
-
-                            else
-                                Theme.Colors.missingRequisites
-
-                        Nothing ->
+                        if currentTier == Nothing then
                             Theme.Colors.unselectedBackground
 
-                Simple _ ->
-                    if currentTier == Nothing then
-                        Theme.Colors.unselectedBackground
-
-                    else if allRequirementsSatisfied then
-                        rgb 0.7 1 0.7
-
-                    else
-                        Theme.Colors.missingRequisites
-    in
-    case choices of
-        Tiered _ ->
-            let
-                tierButtons : List (Element msg)
-                tierButtons =
-                    List.map
-                        (\tier ->
-                            let
-                                selected : Bool
-                                selected =
-                                    Just tier == currentTier
-                            in
-                            Input.button
-                                (Theme.tierButtonAttrs selected tier)
-                                { onPress =
-                                    toMsg <|
-                                        if selected then
-                                            Nothing
-
-                                        else
-                                            Just tier
-                                , label = text <| Types.tierToString tier
-                                }
-                        )
-                        [ S, A, B, C, D, F ]
-            in
-            el common <|
-                label tierButtons
-
-        Simple _ ->
-            Input.button common
-                { onPress =
-                    toMsg <|
-                        if currentTier == Nothing then
-                            Just S
+                        else if allRequirementsSatisfied then
+                            rgb 0.7 1 0.7
 
                         else
-                            Nothing
-                , label = label []
-                }
+                            Theme.Colors.missingRequisites
+        in
+        case choices of
+            Tiered _ ->
+                let
+                    tierButtons : List (Element msg)
+                    tierButtons =
+                        List.map
+                            (\tier ->
+                                let
+                                    selected : Bool
+                                    selected =
+                                        Just tier == currentTier
+                                in
+                                Input.button
+                                    (Theme.tierButtonAttrs selected tier)
+                                    { onPress =
+                                        toMsg <|
+                                            if selected then
+                                                Nothing
+
+                                            else
+                                                Just tier
+                                    , label = text <| Types.tierToString tier
+                                    }
+                            )
+                            [ S, A, B, C, D, F ]
+                in
+                el common <|
+                    label tierButtons
+
+            Simple _ ->
+                Input.button common
+                    { onPress =
+                        toMsg <|
+                            if currentTier == Nothing then
+                                Just S
+
+                            else
+                                Nothing
+                    , label = label []
+                    }
 
 
 viewRequirement : Dict CYOAId (List String) -> Choices -> Maybe Tier -> Requirement -> List (Element msg)

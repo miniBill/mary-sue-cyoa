@@ -139,6 +139,7 @@ viewEditing deviceClass cyoaId old current preview =
                                 Nothing
                                 { choices = Simple Set.empty
                                 , data = cyoa
+                                , compact = False
                                 }
 
                         Err e ->

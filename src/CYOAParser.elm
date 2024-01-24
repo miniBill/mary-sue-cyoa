@@ -1,4 +1,4 @@
-module CYOAParser exposing (errorToString, mainParser)
+module CYOAParser exposing (errorToString, mainParser, requirementParser)
 
 import EnglishNumbers
 import Parser exposing ((|.), (|=), Parser, Problem(..))
@@ -89,7 +89,8 @@ powerParser =
         |. Parser.spaces
         |= Parser.oneOf
             [ Parser.succeed Just
-                |. Parser.symbol "(Replaces "
+                |. Parser.symbol "(Replaces"
+                |. Parser.spaces
                 |= getChompedTrimmed (Parser.chompUntil ")")
                 |. Parser.token ")"
             , Parser.succeed Nothing
@@ -117,7 +118,8 @@ powerParser =
                                     |> Result.withDefault (Requirement cut)
                             )
                 )
-                |. Parser.token "(Requires "
+                |. Parser.token "(Requires"
+                |. Parser.spaces
                 |= getChompedTrimmed (Parser.chompUntil ")")
                 |. Parser.token ")"
             , Parser.succeed []
@@ -128,12 +130,13 @@ powerParser =
 
 requirementParser : Parser Requirement
 requirementParser =
-    Parser.succeed (\num reqs -> AtLeastXOf num ((List.map (Requirement << String.trim) << String.split ", ") reqs))
-        |. Parser.symbol "at least "
+    Parser.succeed (\num reqs -> AtLeastXOf num ((List.map (Requirement << String.trim) << String.split ",") reqs))
+        |. Parser.symbol "at least"
         |. Parser.spaces
         |= numberParser
         |. Parser.spaces
-        |. Parser.symbol " of: "
+        |. Parser.symbol "of:"
+        |. Parser.spaces
         |= getChompedTrimmed (Parser.chompUntilEndOr ")")
 
 

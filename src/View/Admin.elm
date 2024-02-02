@@ -309,5 +309,14 @@ topRow inner =
 
         _ ->
             Element.none
+    , case inner of
+        Renaming _ _ ->
+            Theme.button []
+                { label = text "Rename"
+                , onPress = Nothing
+                }
+
+        _ ->
+            Element.none
     ]
         |> Theme.row []

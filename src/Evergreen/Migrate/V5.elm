@@ -25,7 +25,6 @@ import Evergreen.V1.Types
 import Evergreen.V5.Password
 import Evergreen.V5.Types
 import Lamdera.Migrations exposing (..)
-import Password
 
 
 frontendModel : Evergreen.V1.Types.FrontendModel -> ModelMigration Evergreen.V5.Types.FrontendModel Evergreen.V5.Types.FrontendMsg

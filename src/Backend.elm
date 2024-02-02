@@ -70,8 +70,13 @@ updateFromFrontend _ clientId msg model =
                         )
 
                     TBDeleteCYOA cyoaId ->
-                        ( { model | cyoas = Dict.remove cyoaId model.cyoas }
-                        , Cmd.none
+                        let
+                            newModel : BackendModel
+                            newModel =
+                                { model | cyoas = Dict.remove cyoaId model.cyoas }
+                        in
+                        ( newModel
+                        , Lamdera.sendToFrontend clientId <| TFAdmin newModel.cyoas
                         )
 
                     TBRenameCYOA oldCyoadId newCyoadId ->
@@ -80,13 +85,18 @@ updateFromFrontend _ clientId msg model =
                                 ( model, Cmd.none )
 
                             Just cyoa ->
-                                ( { model
-                                    | cyoas =
-                                        model.cyoas
-                                            |> Dict.remove oldCyoadId
-                                            |> Dict.insert newCyoadId cyoa
-                                  }
-                                , Cmd.none
+                                let
+                                    newModel : BackendModel
+                                    newModel =
+                                        { model
+                                            | cyoas =
+                                                model.cyoas
+                                                    |> Dict.remove oldCyoadId
+                                                    |> Dict.insert newCyoadId cyoa
+                                        }
+                                in
+                                ( newModel
+                                , Lamdera.sendToFrontend clientId <| TFAdmin newModel.cyoas
                                 )
 
             else

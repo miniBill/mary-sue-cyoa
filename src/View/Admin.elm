@@ -2,7 +2,7 @@ module View.Admin exposing (view)
 
 import CYOAParser
 import Dict exposing (Dict)
-import Element exposing (DeviceClass, Element, alignRight, alignTop, el, fill, height, inFront, newTabLink, rgb, spacing, text, width)
+import Element exposing (DeviceClass, Element, alignRight, alignTop, el, fill, height, inFront, newTabLink, paragraph, rgb, spacing, text, width)
 import Element.Background as Background
 import Element.Font as Font
 import Element.Input as Input
@@ -29,8 +29,8 @@ view deviceClass admin =
         Editing cyoaId old current preview ->
             viewEditing deviceClass cyoaId old current preview
 
-        Renaming _ _ ->
-            [ Theme.centralMessage "branch 'Renaming _ _' not implemented" ]
+        Renaming from to ->
+            viewRenaming from to
 
         Deleting _ ->
             [ Theme.centralMessage "branch 'Deleting _' not implemented" ]
@@ -56,6 +56,23 @@ viewCreating cyoaId =
     , Theme.button []
         { label = text "Create"
         , onPress = Just <| CreateDo cyoaId
+        }
+    ]
+
+
+viewRenaming : CYOAId -> CYOAId -> List (Element AdminMsg)
+viewRenaming from to =
+    [ Input.text
+        [ Background.color Theme.Colors.palerViolet
+        ]
+        { label = Input.labelAbove [] <| paragraph [] [ text <| "You are renaming ", el [ Font.family [ Font.monospace ] ] <| text from, text " to" ]
+        , text = to
+        , placeholder = Just <| Input.placeholder [] <| text "bestest-notebook-ever"
+        , onChange = RenamePrepare from
+        }
+    , Theme.button []
+        { label = text "Rename"
+        , onPress = Just <| RenameDo from to
         }
     ]
 
@@ -175,6 +192,10 @@ viewAdminList cyoas =
                     [ Theme.button []
                         { label = text cyoaId
                         , onPress = Just <| UpdatePrepare cyoaId raw raw False
+                        }
+                    , Theme.button []
+                        { label = text "Rename"
+                        , onPress = Just <| RenamePrepare cyoaId cyoaId
                         }
                     , text <| "Link:"
                     , newTabLink

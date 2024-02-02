@@ -183,6 +183,9 @@ updateFromBackend msg ({ inner } as model) =
                                 , inner = Listing
                                 }
 
+                        Admin admin ->
+                            Admin { admin | cyoas = cyoas }
+
                         _ ->
                             inner
     in

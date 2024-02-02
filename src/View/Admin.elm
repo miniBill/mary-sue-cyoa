@@ -2,7 +2,7 @@ module View.Admin exposing (view)
 
 import CYOAParser
 import Dict exposing (Dict)
-import Element exposing (DeviceClass, Element, alignRight, alignTop, el, fill, height, inFront, newTabLink, paragraph, rgb, spacing, text, width)
+import Element exposing (DeviceClass, Element, alignRight, alignTop, centerY, el, fill, height, inFront, newTabLink, paragraph, rgb, shrink, spacing, table, text, width)
 import Element.Background as Background
 import Element.Font as Font
 import Element.Input as Input
@@ -175,38 +175,55 @@ viewEditing deviceClass cyoaId old current preview =
 
 viewAdminList : Dict CYOAId CYOA -> List (Element AdminMsg)
 viewAdminList cyoas =
-    cyoas
-        |> Dict.toList
-        |> List.map
-            (\( cyoaId, cyoa ) ->
-                let
-                    raw : String
-                    raw =
-                        cyoaToString cyoa
-
-                    url : String
-                    url =
-                        Url.Builder.absolute [ Url.percentEncode cyoaId ] []
-                in
-                Theme.row []
-                    [ Theme.button []
-                        { label = text cyoaId
-                        , onPress = Just <| UpdatePrepare cyoaId raw raw False
-                        }
-                    , Theme.button []
-                        { label = text "Rename"
-                        , onPress = Just <| RenamePrepare cyoaId cyoaId
-                        }
-                    , text <| "Link:"
-                    , newTabLink
-                        [ Font.underline
-                        , Font.color Theme.Colors.violet
-                        ]
-                        { url = url
-                        , label = text <| "https://mary-sue.lamdera.app" ++ url
-                        }
-                    ]
-            )
+    [ table [ Theme.spacing ]
+        { columns =
+            [ { header = text "Name"
+              , width = shrink
+              , view =
+                    \( cyoaId, cyoa ) ->
+                        let
+                            raw : String
+                            raw =
+                                cyoaToString cyoa
+                        in
+                        Theme.button []
+                            { label = text cyoaId
+                            , onPress = Just <| UpdatePrepare cyoaId raw raw False
+                            }
+              }
+            , { header = text "Link"
+              , width = shrink
+              , view =
+                    \( cyoaId, _ ) ->
+                        let
+                            url : String
+                            url =
+                                Url.Builder.absolute [ Url.percentEncode cyoaId ] []
+                        in
+                        newTabLink
+                            [ Font.underline
+                            , Font.color Theme.Colors.violet
+                            , centerY
+                            ]
+                            { url = url
+                            , label = text <| "https://mary-sue.lamdera.app" ++ url
+                            }
+              }
+            , { header = text "Actions"
+              , width = shrink
+              , view =
+                    \( cyoaId, _ ) ->
+                        Theme.button []
+                            { label = text "Rename"
+                            , onPress = Just <| RenamePrepare cyoaId cyoaId
+                            }
+              }
+            ]
+        , data =
+            cyoas
+                |> Dict.toList
+        }
+    ]
 
 
 cyoaToString : CYOA -> String

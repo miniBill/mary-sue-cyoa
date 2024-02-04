@@ -238,7 +238,7 @@ viewUserList users =
         { columns =
             [ { header = text "Id"
               , width = shrink
-              , view = \( userId, _ ) -> text userId
+              , view = \( userId, _ ) -> el [ centerY ] <| text userId
               }
             , { header = text "Actions"
               , width = shrink

@@ -39,7 +39,11 @@ view deviceClass admin =
             [ Theme.centralMessage "branch 'Deleting _' not implemented" ]
 
         PasswordResetDone userId password ->
-            [ text <| "Password reset successfull: user " ++ userId ++ " now has password " ++ password ]
+            [ paragraph []
+                [ text <| "Password reset successfull: user " ++ userId ++ " now has password "
+                , el [ Font.family [ Font.monospace ] ] <| text password
+                ]
+            ]
     )
         |> (::) (topRow admin.inner)
         |> Theme.column

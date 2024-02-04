@@ -2,16 +2,15 @@ module Types.Password exposing (Password, input, isCorrect, password)
 
 import Element exposing (Element, text)
 import Element.Input as Input
-import Env
 
 
 type Password
     = Password String
 
 
-isCorrect : Password -> Bool
-isCorrect (Password pwd) =
-    pwd == Env.password
+isCorrect : Password -> Password -> Bool
+isCorrect (Password l) (Password r) =
+    l == r
 
 
 password : String -> Password

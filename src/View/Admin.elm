@@ -219,6 +219,10 @@ viewAdminList cyoas =
                             , label = text <| "https://mary-sue.lamdera.app" ++ url
                             }
               }
+            , { header = text "User"
+              , width = shrink
+              , view = \( _, cyoa ) -> text cyoa.userId
+              }
             , { header = text "Actions"
               , width = shrink
               , view =

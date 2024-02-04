@@ -10,7 +10,7 @@ import Parser
 import Set
 import Theme
 import Theme.Colors
-import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Section)
+import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Section, User, UserId)
 import Types.Password exposing (Password)
 import Url
 import Url.Builder
@@ -23,6 +23,9 @@ view deviceClass admin =
         Listing ->
             viewAdminList admin.cyoas
 
+        ListingUsers users ->
+            viewUserList users
+
         Creating cyoaId ->
             viewCreating cyoaId
 
@@ -34,6 +37,9 @@ view deviceClass admin =
 
         Deleting _ ->
             [ Theme.centralMessage "branch 'Deleting _' not implemented" ]
+
+        PasswordResetDone userId password ->
+            [ text <| "Password reset successfull: user " ++ userId ++ " now has password " ++ password ]
     )
         |> (::) (topRow admin.inner)
         |> Theme.column
@@ -226,6 +232,29 @@ viewAdminList cyoas =
     ]
 
 
+viewUserList : Dict UserId User -> List (Element AdminMsg)
+viewUserList users =
+    [ table [ Theme.spacing ]
+        { columns =
+            [ { header = text "Id"
+              , width = shrink
+              , view = \( userId, _ ) -> text userId
+              }
+            , { header = text "Actions"
+              , width = shrink
+              , view =
+                    \( userId, _ ) ->
+                        Theme.button []
+                            { label = text "Reset password"
+                            , onPress = Just <| ResetPassword userId
+                            }
+              }
+            ]
+        , data = Dict.toList users
+        }
+    ]
+
+
 cyoaToString : CYOA -> String
 cyoaToString sections =
     sections
@@ -335,5 +364,15 @@ topRow inner =
 
         _ ->
             Element.none
+    , Theme.button [ alignRight ]
+        { label = text "Users"
+        , onPress =
+            case inner of
+                ListingUsers _ ->
+                    Nothing
+
+                _ ->
+                    Just Users
+        }
     ]
         |> Theme.row []

@@ -3,6 +3,7 @@ module Backend exposing (app)
 import Dict exposing (Dict)
 import Lamdera exposing (ClientId)
 import Platform.Cmd as Cmd
+import Random
 import Types exposing (BackendModel, BackendMsg(..), CYOAId, TBAuthenticated(..), ToBackend(..), ToFrontend(..))
 import Types.Password as Password
 
@@ -26,6 +27,7 @@ init : ( BackendModel, Cmd backendMsg )
 init =
     ( { cyoas = Dict.empty
       , connections = Dict.empty
+      , users = Dict.empty
       }
     , Cmd.none
     )
@@ -36,6 +38,16 @@ update msg model =
     case msg of
         BackendDisconnected clientId ->
             ( { model | connections = Dict.remove clientId model.connections }, Cmd.none )
+
+        DoPasswordReset clientId userId password ->
+            ( { model
+                | users =
+                    Dict.insert userId
+                        { password = Password.password password }
+                        model.users
+              }
+            , Lamdera.sendToFrontend clientId <| TFResetPassword userId password
+            )
 
 
 updateFromFrontend : Lamdera.SessionId -> Lamdera.ClientId -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg )
@@ -58,6 +70,12 @@ updateFromFrontend _ clientId msg model =
                         ( { model | connections = Dict.insert clientId "admin" model.connections }
                         , Lamdera.sendToFrontend clientId <| TFAdmin model.cyoas
                         )
+
+                    TBListUsers ->
+                        ( model, Lamdera.sendToFrontend clientId <| TFUsers model.users )
+
+                    TBResetPassword userId ->
+                        ( model, resetPassword clientId userId )
 
                     TBUpdateCYOA cyoaId cyoa ->
                         ( { model | cyoas = Dict.insert cyoaId cyoa model.cyoas }
@@ -96,11 +114,25 @@ updateFromFrontend _ clientId msg model =
                                         }
                                 in
                                 ( newModel
-                                , Lamdera.sendToFrontend clientId <| TFAdmin newModel.cyoas
+                                , Lamdera.sendToFrontend clientId <| TFRenamedCYOA oldCyoadId newCyoadId
                                 )
 
             else
                 ( model, Cmd.none )
+
+
+resetPassword : ClientId -> Types.UserId -> Cmd BackendMsg
+resetPassword clientId userId =
+    Random.generate (DoPasswordReset clientId userId) randomPassword
+
+
+randomPassword : Random.Generator String
+randomPassword =
+    List.range 0x22 0x7E
+        |> List.map Char.fromCode
+        |> Random.uniform '!'
+        |> Random.list 8
+        |> Random.map String.fromList
 
 
 sendTo : ClientId -> CYOAId -> ToFrontend -> Dict ClientId CYOAId -> Cmd msg

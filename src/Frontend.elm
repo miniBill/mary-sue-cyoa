@@ -19,7 +19,7 @@ import Set
 import Task
 import Theme
 import Theme.Colors
-import Types exposing (AdminMsg(..), CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..))
+import Types exposing (AdminModel, AdminMsg(..), CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..))
 import Types.Password as Password exposing (Password)
 import Url exposing (Url)
 import Url.Builder
@@ -185,6 +185,22 @@ updateFromBackend msg ({ inner } as model) =
 
                         Admin admin ->
                             Admin { admin | cyoas = cyoas }
+
+                        _ ->
+                            inner
+
+                TFUsers users ->
+                    case inner of
+                        Admin admin ->
+                            Admin { admin | inner = ListingUsers users }
+
+                        _ ->
+                            inner
+
+                TFResetPassword userId password ->
+                    case inner of
+                        Admin admin ->
+                            Admin { admin | inner = PasswordResetDone userId password }
 
                         _ ->
                             inner
@@ -669,7 +685,7 @@ update msg model =
         ( AdminMsg innerMsg, Admin admin ) ->
             let
                 ( newInner, maybeAuthenticatedMsg ) =
-                    adminUpdate innerMsg
+                    adminUpdate admin innerMsg
             in
             ( { model | inner = Admin { admin | inner = newInner } }
             , case maybeAuthenticatedMsg of
@@ -684,8 +700,8 @@ update msg model =
             ( model, Cmd.none )
 
 
-adminUpdate : AdminMsg -> ( InnerAdminModel, Maybe TBAuthenticated )
-adminUpdate msg =
+adminUpdate : AdminModel -> AdminMsg -> ( InnerAdminModel, Maybe TBAuthenticated )
+adminUpdate model msg =
     case msg of
         CreatePrepare cyoaId ->
             ( Creating cyoaId, Nothing )
@@ -713,6 +729,12 @@ adminUpdate msg =
 
         List ->
             ( Listing, Nothing )
+
+        Users ->
+            ( model.inner, Just TBListUsers )
+
+        ResetPassword userId ->
+            ( model.inner, Just <| TBResetPassword userId )
 
 
 subscriptions : FrontendModel -> Sub FrontendMsg

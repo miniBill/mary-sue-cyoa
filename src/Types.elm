@@ -1,4 +1,4 @@
-module Types exposing (AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Requirement(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..), getAlternatives, groupPowers, powerTier, requirementToString, tierToString)
+module Types exposing (AdminModel, AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Requirement(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..), User, UserId, getAlternatives, groupPowers, powerTier, requirementToString, tierToString)
 
 import Browser
 import Browser.Navigation exposing (Key)
@@ -26,11 +26,7 @@ type InnerModel
         { password : Password
         , loggingIn : Bool
         }
-    | Admin
-        { password : Password
-        , cyoas : Dict CYOAId CYOA
-        , inner : InnerAdminModel
-        }
+    | Admin AdminModel
     | Loaded
         { cyoaId : CYOAId
         , choices : Choices
@@ -39,8 +35,17 @@ type InnerModel
         }
 
 
+type alias AdminModel =
+    { password : Password
+    , cyoas : Dict CYOAId CYOA
+    , inner : InnerAdminModel
+    }
+
+
 type InnerAdminModel
     = Listing
+    | ListingUsers (Dict UserId User)
+    | PasswordResetDone UserId String
     | Creating CYOAId
     | Editing CYOAId String String Bool
     | Deleting CYOAId
@@ -130,7 +135,9 @@ type AdminMsg
     | RenameDo CYOAId CYOAId
     | DeletePrepare CYOAId
     | DeleteDo CYOAId
+    | ResetPassword UserId
     | List
+    | Users
 
 
 type Kind
@@ -142,14 +149,25 @@ type alias CYOAId =
     String
 
 
+type alias UserId =
+    String
+
+
 type alias BackendModel =
     { cyoas : Dict CYOAId CYOA
     , connections : Dict ClientId CYOAId
+    , users : Dict UserId User
+    }
+
+
+type alias User =
+    { password : Password
     }
 
 
 type BackendMsg
     = BackendDisconnected ClientId
+    | DoPasswordReset ClientId UserId String
 
 
 type ToBackend
@@ -163,6 +181,8 @@ type TBAuthenticated
     | TBRenameCYOA CYOAId CYOAId
     | TBUpdateCYOA CYOAId CYOA
     | TBDeleteCYOA CYOAId
+    | TBListUsers
+    | TBResetPassword UserId
 
 
 type ToFrontend
@@ -171,6 +191,8 @@ type ToFrontend
     | TFDeletedCYOA CYOAId
     | TFCYOAMissing CYOAId
     | TFAdmin (Dict CYOAId CYOA)
+    | TFUsers (Dict UserId User)
+    | TFResetPassword UserId String
 
 
 powerTier : Choices -> String -> Maybe Tier

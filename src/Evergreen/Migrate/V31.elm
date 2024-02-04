@@ -63,7 +63,7 @@ migrate_Types_BackendModel : Evergreen.V27.Types.BackendModel -> Evergreen.V31.T
 migrate_Types_BackendModel old =
     { cyoas = old.cyoas |> Dict.map (\_ -> migrate_Types_CYOA)
     , connections = old.connections
-    , users = Dict.singleton "admin" { password = Evergreen.V31.Types.Password.password Env.password }
+    , users = Dict.singleton "admin" { password = Evergreen.V31.Types.Password.Password Env.password }
     }
 
 
@@ -236,7 +236,7 @@ migrate_Types_Password_Password : Evergreen.V27.Types.Password.Password -> Everg
 migrate_Types_Password_Password old =
     case old of
         Evergreen.V27.Types.Password.Password p0 ->
-            Evergreen.V31.Types.Password.password p0
+            Evergreen.V31.Types.Password.Password p0
 
 
 migrate_Types_Power : Evergreen.V27.Types.Power -> Evergreen.V31.Types.Power

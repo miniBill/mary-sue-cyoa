@@ -221,7 +221,7 @@ viewAdminList cyoas =
               }
             , { header = text "User"
               , width = shrink
-              , view = \( _, cyoa ) -> text cyoa.userId
+              , view = \( _, cyoa ) -> el [ centerY ] <| text cyoa.userId
               }
             , { header = text "Actions"
               , width = shrink

@@ -1,6 +1,7 @@
 module Backend exposing (app)
 
 import Dict exposing (Dict)
+import Env
 import Lamdera exposing (ClientId)
 import Platform.Cmd as Cmd
 import Random
@@ -27,7 +28,7 @@ init : ( BackendModel, Cmd backendMsg )
 init =
     ( { cyoas = Dict.empty
       , connections = Dict.empty
-      , users = Dict.empty
+      , users = Dict.singleton "admin" { password = Password.password Env.password }
       }
     , Cmd.none
     )

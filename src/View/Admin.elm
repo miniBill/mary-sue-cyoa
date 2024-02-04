@@ -109,15 +109,15 @@ viewEditing deviceClass cyoaId old current preview =
         parsed =
             Parser.run CYOAParser.mainParser (current ++ "\n")
 
-        saveButton : Maybe CYOA -> Element AdminMsg
-        saveButton cyoa =
+        saveButton : Maybe (List Section) -> Element AdminMsg
+        saveButton sections =
             Theme.button []
                 { onPress =
                     if old == current then
                         Nothing
 
                     else
-                        Maybe.map (UpdateDo cyoaId) cyoa
+                        Maybe.map (UpdateDo cyoaId) sections
                 , label = text "Save"
                 }
 
@@ -161,11 +161,11 @@ viewEditing deviceClass cyoaId old current preview =
                     ]
                     [ el [] Element.none
                     , case parsed of
-                        Ok cyoa ->
+                        Ok sections ->
                             View.CYOA.view deviceClass
                                 Nothing
                                 { choices = Simple Set.empty
-                                , data = cyoa
+                                , data = { sections = sections }
                                 , compact = False
                                 }
 
@@ -260,7 +260,7 @@ viewUserList users =
 
 
 cyoaToString : CYOA -> String
-cyoaToString sections =
+cyoaToString { sections } =
     sections
         |> List.map sectionToString
         |> String.join "\n"

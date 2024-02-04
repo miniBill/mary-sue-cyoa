@@ -324,7 +324,7 @@ view deviceClass inner =
                     Theme.row
                   )
                     [ Theme.padding, width fill ]
-                    [ viewScore innerModel.choices innerModel.data
+                    [ viewScore innerModel.choices innerModel.data.sections
                     , viewToggles innerModel.choices innerModel.compact
                     ]
                 , View.CYOA.view deviceClass (Just ChooseTier) innerModel

@@ -89,7 +89,9 @@ tierToString tier =
 
 
 type alias CYOA =
-    List Section
+    { sections : List Section
+    , userId : UserId
+    }
 
 
 type alias Section =
@@ -130,7 +132,7 @@ type AdminMsg
     = CreatePrepare CYOAId
     | CreateDo CYOAId
     | UpdatePrepare CYOAId String String Bool
-    | UpdateDo CYOAId CYOA
+    | UpdateDo CYOAId (List Section)
     | RenamePrepare CYOAId CYOAId
     | RenameDo CYOAId CYOAId
     | DeletePrepare CYOAId
@@ -179,7 +181,7 @@ type TBAuthenticated
     = TBLogin
     | TBCreateCYOA CYOAId
     | TBRenameCYOA CYOAId CYOAId
-    | TBUpdateCYOA CYOAId CYOA
+    | TBUpdateCYOA CYOAId (List Section)
     | TBDeleteCYOA CYOAId
     | TBListUsers
     | TBResetPassword UserId
@@ -267,8 +269,8 @@ groupPowers powers =
             List.reverse (( lp, lg ) :: finalAcc)
 
 
-getAlternatives : CYOA -> Dict CYOAId (List CYOAId)
-getAlternatives sections =
+getAlternatives : { a | sections : List Section } -> Dict CYOAId (List CYOAId)
+getAlternatives { sections } =
     let
         upsert : CYOAId -> CYOAId -> Dict CYOAId (List CYOAId) -> Dict CYOAId (List CYOAId)
         upsert key value acc =

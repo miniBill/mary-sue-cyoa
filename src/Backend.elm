@@ -6,7 +6,7 @@ import Lamdera exposing (ClientId)
 import List.Extra
 import Platform.Cmd as Cmd
 import Random
-import Types exposing (BackendModel, BackendMsg(..), CYOAId, TBAuthenticated(..), ToBackend(..), ToFrontend(..), User, UserId)
+import Types exposing (BackendModel, BackendMsg(..), CYOA, CYOAId, TBAuthenticated(..), ToBackend(..), ToFrontend(..), User, UserId)
 import Types.Password as Password exposing (Password)
 
 
@@ -71,11 +71,25 @@ updateFromFrontend _ clientId msg model =
                     case inner of
                         TBLogin ->
                             ( model
-                            , Lamdera.sendToFrontend clientId <| TFAdmin model.cyoas
+                            , Lamdera.sendToFrontend clientId <|
+                                TFAdmin <|
+                                    if userId == "admin" then
+                                        model.cyoas
+
+                                    else
+                                        Dict.filter (\_ cyoa -> cyoa.userId == userId) model.cyoas
                             )
 
                         TBListUsers ->
-                            ( model, Lamdera.sendToFrontend clientId <| TFUsers model.users )
+                            ( model
+                            , Lamdera.sendToFrontend clientId <|
+                                TFUsers <|
+                                    if userId == "admin" then
+                                        model.users
+
+                                    else
+                                        Dict.filter (\uid _ -> uid == userId) model.users
+                            )
 
                         TBResetPassword targetId ->
                             if userId == "admin" || targetId == userId then
@@ -84,48 +98,77 @@ updateFromFrontend _ clientId msg model =
                             else
                                 ( model, Cmd.none )
 
-                        TBUpdateCYOA cyoaId cyoa ->
-                            ( { model | cyoas = Dict.insert cyoaId cyoa model.cyoas }
-                            , sendTo clientId cyoaId (TFGotCYOA cyoaId cyoa) model.connections
-                            )
+                        TBUpdateCYOA cyoaId sections ->
+                            checkingUserId userId cyoaId model <|
+                                \cyoa ->
+                                    let
+                                        updated : CYOA
+                                        updated =
+                                            { cyoa | sections = sections }
+                                    in
+                                    ( { model | cyoas = Dict.insert cyoaId updated model.cyoas }
+                                    , sendTo clientId cyoaId (TFGotCYOA cyoaId updated) model.connections
+                                    )
 
                         TBCreateCYOA cyoaId ->
-                            ( { model | cyoas = Dict.insert cyoaId [] model.cyoas }
-                            , sendTo clientId cyoaId (TFGotCYOA cyoaId []) model.connections
-                            )
+                            if Dict.member cyoaId model.cyoas then
+                                ( model, Cmd.none )
+
+                            else
+                                let
+                                    newCYOA : CYOA
+                                    newCYOA =
+                                        { sections = [], userId = userId }
+                                in
+                                ( { model | cyoas = Dict.insert cyoaId newCYOA model.cyoas }
+                                , sendTo clientId cyoaId (TFGotCYOA cyoaId newCYOA) model.connections
+                                )
 
                         TBDeleteCYOA cyoaId ->
-                            let
-                                newModel : BackendModel
-                                newModel =
-                                    { model | cyoas = Dict.remove cyoaId model.cyoas }
-                            in
-                            ( newModel
-                            , Lamdera.sendToFrontend clientId <| TFAdmin newModel.cyoas
-                            )
+                            checkingUserId userId cyoaId model <|
+                                \_ ->
+                                    let
+                                        newModel : BackendModel
+                                        newModel =
+                                            { model | cyoas = Dict.remove cyoaId model.cyoas }
+                                    in
+                                    ( newModel
+                                    , Lamdera.sendToFrontend clientId <| TFAdmin newModel.cyoas
+                                    )
 
-                        TBRenameCYOA oldCyoadId newCyoadId ->
-                            case Dict.get oldCyoadId model.cyoas of
-                                Nothing ->
-                                    ( model, Cmd.none )
-
-                                Just cyoa ->
+                        TBRenameCYOA oldCyoaId newCyoaId ->
+                            checkingUserId userId oldCyoaId model <|
+                                \cyoa ->
                                     let
                                         newModel : BackendModel
                                         newModel =
                                             { model
                                                 | cyoas =
                                                     model.cyoas
-                                                        |> Dict.remove oldCyoadId
-                                                        |> Dict.insert newCyoadId cyoa
+                                                        |> Dict.remove oldCyoaId
+                                                        |> Dict.insert newCyoaId cyoa
                                             }
                                     in
                                     ( newModel
-                                    , Lamdera.sendToFrontend clientId <| TFRenamedCYOA oldCyoadId newCyoadId
+                                    , Lamdera.sendToFrontend clientId <| TFRenamedCYOA oldCyoaId newCyoaId
                                     )
 
                 Nothing ->
                     ( model, Cmd.none )
+
+
+checkingUserId : UserId -> CYOAId -> BackendModel -> (CYOA -> ( BackendModel, Cmd msg )) -> ( BackendModel, Cmd msg )
+checkingUserId userId cyoaId model inner =
+    case Dict.get cyoaId model.cyoas of
+        Nothing ->
+            ( model, Cmd.none )
+
+        Just cyoa ->
+            if userId == "admin" || cyoa.userId == userId then
+                inner cyoa
+
+            else
+                ( model, Cmd.none )
 
 
 checkPassword : Password -> Dict UserId User -> Maybe UserId

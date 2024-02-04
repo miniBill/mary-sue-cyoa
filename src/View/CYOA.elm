@@ -17,7 +17,7 @@ import Theme.Colors
 import Types exposing (CYOAId, Choices(..), Power, Requirement(..), Section, Tier(..))
 
 
-view : DeviceClass -> Maybe (String -> Maybe Tier -> msg) -> { a | choices : Choices, data : Types.CYOA, compact : Bool } -> Element msg
+view : DeviceClass -> Maybe (String -> Maybe Tier -> msg) -> { a | choices : Choices, data : { b | sections : List Section }, compact : Bool } -> Element msg
 view deviceClass chooseTier innerModel =
     let
         alternatives : Dict CYOAId (List String)
@@ -36,7 +36,7 @@ view deviceClass chooseTier innerModel =
         ]
         (List.map
             (viewSection deviceClass alternatives chooseTier innerModel.choices innerModel.compact)
-            innerModel.data
+            innerModel.data.sections
         )
 
 

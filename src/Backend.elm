@@ -51,6 +51,16 @@ update msg model =
             , Lamdera.sendToFrontend clientId <| TFResetPassword userId password
             )
 
+        DoCreateUser clientId userId password ->
+            ( { model
+                | users =
+                    Dict.insert userId
+                        { password = Password.password password }
+                        model.users
+              }
+            , Lamdera.sendToFrontend clientId <| TFCreatedUser userId password
+            )
+
 
 updateFromFrontend : Lamdera.SessionId -> Lamdera.ClientId -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg )
 updateFromFrontend _ clientId msg model =
@@ -124,6 +134,15 @@ updateFromFrontend _ clientId msg model =
                                 , sendTo clientId cyoaId (TFGotCYOA cyoaId newCYOA) model.connections
                                 )
 
+                        TBCreateUser newUserId ->
+                            if Dict.member newUserId model.users then
+                                ( model, Cmd.none )
+
+                            else
+                                ( model
+                                , createUser clientId newUserId
+                                )
+
                         TBDeleteCYOA cyoaId ->
                             checkingUserId userId cyoaId model <|
                                 \_ ->
@@ -188,6 +207,11 @@ checkPassword password users =
 resetPassword : ClientId -> UserId -> Cmd BackendMsg
 resetPassword clientId userId =
     Random.generate (DoPasswordReset clientId userId) randomPassword
+
+
+createUser : ClientId -> UserId -> Cmd BackendMsg
+createUser clientId userId =
+    Random.generate (DoCreateUser clientId userId) randomPassword
 
 
 randomPassword : Random.Generator String

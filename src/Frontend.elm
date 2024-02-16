@@ -204,6 +204,14 @@ updateFromBackend msg ({ inner } as model) =
 
                         _ ->
                             inner
+
+                TFCreatedUser userId password ->
+                    case inner of
+                        Admin admin ->
+                            Admin { admin | inner = CreateUserDone userId password }
+
+                        _ ->
+                            inner
     in
     ( { model | inner = newInner }, Cmd.none )
 
@@ -708,6 +716,12 @@ adminUpdate model msg =
 
         CreateDo cyoaId ->
             ( Listing, Just <| TBCreateCYOA cyoaId )
+
+        CreateUserPrepare userId ->
+            ( CreatingUser userId, Nothing )
+
+        CreateUserDo userId ->
+            ( Listing, Just <| TBCreateUser userId )
 
         UpdatePrepare cyoaId old current preview ->
             ( Editing cyoaId old current preview, Nothing )

@@ -26,6 +26,9 @@ view deviceClass admin =
         ListingUsers users ->
             viewUserList users
 
+        CreatingUser user ->
+            viewCreatingUser user
+
         Creating cyoaId ->
             viewCreating cyoaId
 
@@ -41,6 +44,13 @@ view deviceClass admin =
         PasswordResetDone userId password ->
             [ paragraph []
                 [ text <| "Password reset successfull: user " ++ userId ++ " now has password "
+                , el [ Font.family [ Font.monospace ] ] <| text password
+                ]
+            ]
+
+        CreateUserDone userId password ->
+            [ paragraph []
+                [ text <| "User successfully created: user " ++ userId ++ " with password "
                 , el [ Font.family [ Font.monospace ] ] <| text password
                 ]
             ]
@@ -66,6 +76,23 @@ viewCreating cyoaId =
     , Theme.button []
         { label = text "Create"
         , onPress = Just <| CreateDo cyoaId
+        }
+    ]
+
+
+viewCreatingUser : UserId -> List (Element AdminMsg)
+viewCreatingUser userId =
+    [ Input.text
+        [ Background.color Theme.Colors.palerViolet
+        ]
+        { label = Input.labelAbove [] <| text "Username"
+        , text = userId
+        , placeholder = Just <| Input.placeholder [] <| text "username"
+        , onChange = CreateUserPrepare
+        }
+    , Theme.button []
+        { label = text "Create"
+        , onPress = Just <| CreateUserDo userId
         }
     ]
 
@@ -259,6 +286,10 @@ viewUserList users =
               }
             ]
         , data = Dict.toList users
+        }
+    , Theme.button []
+        { onPress = Just (CreateUserPrepare "")
+        , label = text "Create"
         }
     ]
 

@@ -47,6 +47,8 @@ type InnerAdminModel
     | ListingUsers (Dict UserId User)
     | PasswordResetDone UserId String
     | Creating CYOAId
+    | CreatingUser UserId
+    | CreateUserDone UserId String
     | Editing CYOAId String String Bool
     | Deleting CYOAId
     | Renaming CYOAId CYOAId
@@ -131,6 +133,8 @@ type FrontendMsg
 type AdminMsg
     = CreatePrepare CYOAId
     | CreateDo CYOAId
+    | CreateUserPrepare UserId
+    | CreateUserDo UserId
     | UpdatePrepare CYOAId String String Bool
     | UpdateDo CYOAId (List Section)
     | RenamePrepare CYOAId CYOAId
@@ -170,6 +174,7 @@ type alias User =
 type BackendMsg
     = BackendDisconnected ClientId
     | DoPasswordReset ClientId UserId String
+    | DoCreateUser ClientId UserId String
 
 
 type ToBackend
@@ -184,6 +189,7 @@ type TBAuthenticated
     | TBUpdateCYOA CYOAId (List Section)
     | TBDeleteCYOA CYOAId
     | TBListUsers
+    | TBCreateUser UserId
     | TBResetPassword UserId
 
 
@@ -195,6 +201,7 @@ type ToFrontend
     | TFAdmin (Dict CYOAId CYOA)
     | TFUsers (Dict UserId User)
     | TFResetPassword UserId String
+    | TFCreatedUser UserId String
 
 
 powerTier : Choices -> String -> Maybe Tier

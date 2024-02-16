@@ -38,6 +38,9 @@ view deviceClass admin =
         Renaming from to ->
             viewRenaming from to
 
+        Transferring cyoaId userId ->
+            viewTransferring cyoaId userId
+
         Deleting _ ->
             [ Theme.centralMessage "branch 'Deleting _' not implemented" ]
 
@@ -110,6 +113,23 @@ viewRenaming from to =
     , Theme.button []
         { label = text "Rename"
         , onPress = Just <| RenameDo from to
+        }
+    ]
+
+
+viewTransferring : CYOAId -> UserId -> List (Element AdminMsg)
+viewTransferring cyoaId userId =
+    [ Input.text
+        [ Background.color Theme.Colors.palerViolet
+        ]
+        { label = Input.labelAbove [] <| paragraph [] [ text <| "You are transferring ", el [ Font.family [ Font.monospace ] ] <| text cyoaId, text " to" ]
+        , text = userId
+        , placeholder = Just <| Input.placeholder [] <| text "admin"
+        , onChange = TransferPrepare cyoaId
+        }
+    , Theme.button []
+        { label = text "Transfer"
+        , onPress = Just <| TransferDo cyoaId userId
         }
     ]
 
@@ -253,11 +273,17 @@ viewAdminList cyoas =
             , { header = text "Actions"
               , width = shrink
               , view =
-                    \( cyoaId, _ ) ->
-                        Theme.button []
-                            { label = text "Rename"
-                            , onPress = Just <| RenamePrepare cyoaId cyoaId
-                            }
+                    \( cyoaId, cyoa ) ->
+                        Theme.row []
+                            [ Theme.button []
+                                { label = text "Rename"
+                                , onPress = Just <| RenamePrepare cyoaId cyoaId
+                                }
+                            , Theme.button []
+                                { label = text "Transfer"
+                                , onPress = Just <| TransferPrepare cyoaId cyoa.userId
+                                }
+                            ]
               }
             ]
         , data =

@@ -100,6 +100,25 @@ updateFromBackend msg ({ inner } as model) =
                         _ ->
                             inner
 
+                TFTransferredCYOA cyoaId userId ->
+                    case inner of
+                        Admin admin ->
+                            case Dict.get cyoaId admin.cyoas of
+                                Nothing ->
+                                    inner
+
+                                Just cyoa ->
+                                    Admin
+                                        { admin
+                                            | cyoas =
+                                                Dict.insert cyoaId
+                                                    { cyoa | userId = userId }
+                                                    admin.cyoas
+                                        }
+
+                        _ ->
+                            inner
+
                 TFDeletedCYOA cyoaId ->
                     case inner of
                         Loading id _ ->
@@ -734,6 +753,12 @@ adminUpdate model msg =
 
         RenameDo from to ->
             ( Listing, Just <| TBRenameCYOA from to )
+
+        TransferPrepare from to ->
+            ( Transferring from to, Nothing )
+
+        TransferDo from to ->
+            ( Listing, Just <| TBTransferCYOA from to )
 
         DeletePrepare cyoaId ->
             ( Deleting cyoaId, Nothing )

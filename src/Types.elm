@@ -52,6 +52,7 @@ type InnerAdminModel
     | Editing CYOAId String String Bool
     | Deleting CYOAId
     | Renaming CYOAId CYOAId
+    | Transferring CYOAId UserId
 
 
 type Choices
@@ -139,6 +140,8 @@ type AdminMsg
     | UpdateDo CYOAId (List Section)
     | RenamePrepare CYOAId CYOAId
     | RenameDo CYOAId CYOAId
+    | TransferPrepare CYOAId UserId
+    | TransferDo CYOAId UserId
     | DeletePrepare CYOAId
     | DeleteDo CYOAId
     | ResetPassword UserId
@@ -186,6 +189,7 @@ type TBAuthenticated
     = TBLogin
     | TBCreateCYOA CYOAId
     | TBRenameCYOA CYOAId CYOAId
+    | TBTransferCYOA CYOAId UserId
     | TBUpdateCYOA CYOAId (List Section)
     | TBDeleteCYOA CYOAId
     | TBListUsers
@@ -196,6 +200,7 @@ type TBAuthenticated
 type ToFrontend
     = TFGotCYOA CYOAId CYOA
     | TFRenamedCYOA CYOAId CYOAId
+    | TFTransferredCYOA CYOAId UserId
     | TFDeletedCYOA CYOAId
     | TFCYOAMissing CYOAId
     | TFAdmin (Dict CYOAId CYOA)

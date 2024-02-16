@@ -172,6 +172,23 @@ updateFromFrontend _ clientId msg model =
                                     , Lamdera.sendToFrontend clientId <| TFRenamedCYOA oldCyoaId newCyoaId
                                     )
 
+                        TBTransferCYOA cyoaId newUserId ->
+                            checkingUserId userId cyoaId model <|
+                                \cyoa ->
+                                    let
+                                        newModel : BackendModel
+                                        newModel =
+                                            { model
+                                                | cyoas =
+                                                    Dict.insert cyoaId
+                                                        { cyoa | userId = newUserId }
+                                                        model.cyoas
+                                            }
+                                    in
+                                    ( newModel
+                                    , Lamdera.sendToFrontend clientId <| TFTransferredCYOA cyoaId newUserId
+                                    )
+
                 Nothing ->
                     ( model, Cmd.none )
 

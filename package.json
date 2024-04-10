@@ -1,7 +1,7 @@
 {
   "devDependencies": {
-    "elm-review": "^2.10.3",
-    "elm-test": "0.19.1-revision12"
+    "elm-review": "^2.11.1",
+    "elm-test-rs": "^3.0.0-5"
   },
   "license": "BSD-3-Clause"
 }

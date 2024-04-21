@@ -2,14 +2,12 @@ module View.Admin exposing (view)
 
 import CYOAParser
 import Dict exposing (Dict)
-import Element exposing (DeviceClass, Element, alignRight, alignTop, centerY, el, fill, height, inFront, newTabLink, paragraph, rgb, shrink, spacing, table, text, width)
-import Element.Background as Background
+import Element exposing (DeviceClass, Element, alignRight, alignTop, centerY, el, fill, height, inFront, paragraph, rgb, shrink, spacing, table, text, width)
 import Element.Font as Font
 import Element.Input as Input
 import Parser
 import Set
 import Theme
-import Theme.Colors
 import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Section, UserId)
 import Types.Password exposing (Password)
 import Url

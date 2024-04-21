@@ -100,7 +100,9 @@ powerParser =
             [ Parser.succeed
                 (\req ->
                     req
-                        |> String.split " and "
+                        |> String.split ", and"
+                        |> List.concatMap (String.split ", ")
+                        |> List.concatMap (String.split " and ")
                         |> List.map String.trim
                         |> List.map
                             (\s ->

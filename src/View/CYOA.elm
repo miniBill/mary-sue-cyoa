@@ -174,6 +174,31 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
             common : List (Attribute msg)
             common =
                 (if currentTier == Nothing || allRequirementsSatisfied then
+                    let
+                        backgroundColor : Color
+                        backgroundColor =
+                            case choices of
+                                Tiered _ ->
+                                    case currentTier of
+                                        Just tier ->
+                                            if allRequirementsSatisfied then
+                                                Theme.Colors.colorToColor <|
+                                                    Theme.Colors.hslaMap (\hsla -> { hsla | lightness = 0.85 }) <|
+                                                        Theme.Colors.tierToColor tier
+
+                                            else
+                                                Theme.Colors.missingRequisites
+
+                                        Nothing ->
+                                            Theme.Colors.unselectedBackground
+
+                                Simple _ ->
+                                    if currentTier == Nothing then
+                                        Theme.Colors.unselectedBackground
+
+                                    else
+                                        rgb 0.7 1 0.7
+                    in
                     [ Border.width 1
                     , Background.color backgroundColor
                     ]
@@ -201,33 +226,6 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
             allRequirementsSatisfied : Bool
             allRequirementsSatisfied =
                 List.all (isRequirementSatisfied alternatives choices) power.requires
-
-            backgroundColor : Color
-            backgroundColor =
-                case choices of
-                    Tiered _ ->
-                        case currentTier of
-                            Just tier ->
-                                if allRequirementsSatisfied then
-                                    Theme.Colors.colorToColor <|
-                                        Theme.Colors.hslaMap (\hsla -> { hsla | lightness = 0.85 }) <|
-                                            Theme.Colors.tierToColor tier
-
-                                else
-                                    Theme.Colors.missingRequisites
-
-                            Nothing ->
-                                Theme.Colors.unselectedBackground
-
-                    Simple _ ->
-                        if currentTier == Nothing then
-                            Theme.Colors.unselectedBackground
-
-                        else if allRequirementsSatisfied then
-                            rgb 0.7 1 0.7
-
-                        else
-                            Theme.Colors.missingRequisites
         in
         case choices of
             Tiered _ ->

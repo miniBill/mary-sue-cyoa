@@ -190,7 +190,7 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
                     ]
                 )
                     ++ [ Theme.padding
-                       , width fill
+                       , width <| Element.minimum 250 fill
                        ]
                     ++ attrs
 

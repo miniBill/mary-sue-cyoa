@@ -154,7 +154,7 @@ viewEditing deviceClass cyoaId old current preview =
 
         parsed : Result (List Parser.DeadEnd) (List Section)
         parsed =
-            Parser.run CYOAParser.mainParser (current ++ "\n")
+            Parser.run CYOAParser.mainParser (current ++ "\n\n")
 
         saveButton : Maybe (List Section) -> Element AdminMsg
         saveButton sections =

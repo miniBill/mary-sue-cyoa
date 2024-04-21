@@ -3,7 +3,7 @@ module ParserTest exposing (atLeastXOf)
 import CYOAParser
 import Expect
 import Parser
-import Test exposing (..)
+import Test exposing (Test, test)
 import Types exposing (Requirement(..))
 
 

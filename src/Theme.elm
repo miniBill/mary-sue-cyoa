@@ -1,4 +1,4 @@
-module Theme exposing (button, centralMessage, column, padding, rhythm, row, spacing, tierButtonAttrs, wrappedRow)
+module Theme exposing (button, centralMessage, column, input, multiline, padding, rhythm, row, spacing, tierButtonAttrs, wrappedRow)
 
 import Element exposing (Attribute, Element, centerX, centerY, el, rgb, text)
 import Element.Background as Background
@@ -47,6 +47,33 @@ centralMessage message =
         , Font.size 48
         ]
         (text message)
+
+
+input :
+    List (Attribute msg)
+    ->
+        { onChange : String -> msg
+        , text : String
+        , placeholder : Maybe (Input.Placeholder msg)
+        , label : Input.Label msg
+        }
+    -> Element msg
+input attrs config =
+    Input.text (Background.color Theme.Colors.palerViolet :: attrs) config
+
+
+multiline :
+    List (Attribute msg)
+    ->
+        { onChange : String -> msg
+        , text : String
+        , placeholder : Maybe (Input.Placeholder msg)
+        , label : Input.Label msg
+        , spellcheck : Bool
+        }
+    -> Element msg
+multiline attrs config =
+    Input.multiline (Background.color Theme.Colors.palerViolet :: attrs) config
 
 
 button :

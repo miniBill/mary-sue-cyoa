@@ -68,9 +68,7 @@ view deviceClass admin =
 
 viewCreating : CYOAId -> List (Element AdminMsg)
 viewCreating cyoaId =
-    [ Input.text
-        [ Background.color Theme.Colors.palerViolet
-        ]
+    [ Theme.input []
         { label = Input.labelAbove [] <| text "Id"
         , text = cyoaId
         , placeholder = Just <| Input.placeholder [] <| text "bestest-notebook-ever"
@@ -85,9 +83,7 @@ viewCreating cyoaId =
 
 viewCreatingUser : UserId -> List (Element AdminMsg)
 viewCreatingUser userId =
-    [ Input.text
-        [ Background.color Theme.Colors.palerViolet
-        ]
+    [ Theme.input []
         { label = Input.labelAbove [] <| text "Username"
         , text = userId
         , placeholder = Just <| Input.placeholder [] <| text "username"
@@ -102,9 +98,7 @@ viewCreatingUser userId =
 
 viewRenaming : CYOAId -> CYOAId -> List (Element AdminMsg)
 viewRenaming from to =
-    [ Input.text
-        [ Background.color Theme.Colors.palerViolet
-        ]
+    [ Theme.input []
         { label = Input.labelAbove [] <| paragraph [] [ text <| "You are renaming ", el [ Font.family [ Font.monospace ] ] <| text from, text " to" ]
         , text = to
         , placeholder = Just <| Input.placeholder [] <| text "bestest-notebook-ever"
@@ -119,9 +113,7 @@ viewRenaming from to =
 
 viewTransferring : CYOAId -> UserId -> List (Element AdminMsg)
 viewTransferring cyoaId userId =
-    [ Input.text
-        [ Background.color Theme.Colors.palerViolet
-        ]
+    [ Theme.input []
         { label = Input.labelAbove [] <| paragraph [] [ text <| "You are transferring ", el [ Font.family [ Font.monospace ] ] <| text cyoaId, text " to" ]
         , text = userId
         , placeholder = Just <| Input.placeholder [] <| text "admin"
@@ -139,11 +131,10 @@ viewEditing deviceClass cyoaId old current preview =
     let
         inputBox : Element AdminMsg
         inputBox =
-            Input.multiline
+            Theme.multiline
                 [ alignTop
                 , width fill
                 , height <| Element.maximum 6969 fill
-                , Background.color Theme.Colors.palerViolet
                 ]
                 { label = Input.labelAbove [] <| text "Content"
                 , text = current

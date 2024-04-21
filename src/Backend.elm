@@ -95,10 +95,10 @@ updateFromFrontend _ clientId msg model =
                             , Lamdera.sendToFrontend clientId <|
                                 TFUsers <|
                                     if userId == "admin" then
-                                        model.users
+                                        Dict.keys model.users
 
                                     else
-                                        Dict.filter (\uid _ -> uid == userId) model.users
+                                        [ userId ]
                             )
 
                         TBResetPassword targetId ->

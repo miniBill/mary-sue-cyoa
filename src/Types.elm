@@ -44,7 +44,7 @@ type alias AdminModel =
 
 type InnerAdminModel
     = Listing
-    | ListingUsers (Dict UserId User)
+    | ListingUsers (List UserId)
     | PasswordResetDone UserId String
     | Creating CYOAId
     | CreatingUser UserId
@@ -204,7 +204,7 @@ type ToFrontend
     | TFDeletedCYOA CYOAId
     | TFCYOAMissing CYOAId
     | TFAdmin (Dict CYOAId CYOA)
-    | TFUsers (Dict UserId User)
+    | TFUsers (List UserId)
     | TFResetPassword UserId String
     | TFCreatedUser UserId String
 

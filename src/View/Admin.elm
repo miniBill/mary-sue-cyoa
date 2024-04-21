@@ -10,7 +10,7 @@ import Parser
 import Set
 import Theme
 import Theme.Colors
-import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Section, User, UserId)
+import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Section, UserId)
 import Types.Password exposing (Password)
 import Url
 import Url.Builder
@@ -293,25 +293,25 @@ viewAdminList cyoas =
     ]
 
 
-viewUserList : Dict UserId User -> List (Element AdminMsg)
+viewUserList : List UserId -> List (Element AdminMsg)
 viewUserList users =
     [ table [ Theme.spacing ]
         { columns =
             [ { header = text "Id"
               , width = shrink
-              , view = \( userId, _ ) -> el [ centerY ] <| text userId
+              , view = \userId -> el [ centerY ] <| text userId
               }
             , { header = text "Actions"
               , width = shrink
               , view =
-                    \( userId, _ ) ->
+                    \userId ->
                         Theme.button []
                             { label = text "Reset password"
                             , onPress = Just <| ResetPassword userId
                             }
               }
             ]
-        , data = Dict.toList users
+        , data = users
         }
     , Theme.button []
         { onPress = Just (CreateUserPrepare "")

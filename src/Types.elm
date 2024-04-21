@@ -270,7 +270,7 @@ groupPowers powers =
                                         )
 
                                     Just power ->
-                                        if power.replaces == Just lastPower.id then
+                                        if power.replaces == Just lastPower.id || (power.replaces /= Nothing && power.replaces == lastPower.replaces) then
                                             ( Just ( lastPower, { power | requires = lastPower.requires } :: lastGroupAcc ), acc )
 
                                         else

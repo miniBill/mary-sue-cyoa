@@ -248,11 +248,7 @@ viewAdminList cyoas =
                             url =
                                 Url.Builder.absolute [ Url.percentEncode cyoaId ] []
                         in
-                        newTabLink
-                            [ Font.underline
-                            , Font.color Theme.Colors.violet
-                            , centerY
-                            ]
+                        Theme.newTabLink [ centerY ]
                             { url = url
                             , label = text <| "https://mary-sue.lamdera.app" ++ url
                             }

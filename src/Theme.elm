@@ -1,4 +1,4 @@
-module Theme exposing (button, centralMessage, column, input, multiline, padding, rhythm, row, spacing, tierButtonAttrs, wrappedRow)
+module Theme exposing (button, centralMessage, column, input, multiline, newTabLink, padding, rhythm, row, spacing, tierButtonAttrs, wrappedRow)
 
 import Element exposing (Attribute, Element, centerX, centerY, el, rgb, text)
 import Element.Background as Background
@@ -117,3 +117,13 @@ tierButtonAttrs selected tier =
     , padding
     , Border.width 1
     ]
+
+
+newTabLink : List (Attribute msg) -> { url : String, label : Element msg } -> Element msg
+newTabLink attrs config =
+    Element.newTabLink
+        (Font.underline
+            :: Font.color Theme.Colors.violet
+            :: attrs
+        )
+        config

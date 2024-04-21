@@ -332,9 +332,19 @@ sectionToString section =
     let
         blocks : List String
         blocks =
-            section.name :: section.description ++ List.map viewPower section.powers
+            section.name :: section.description ++ List.map viewPowerOrBreak section.powers
     in
     String.join "\n\n" blocks ++ "\n"
+
+
+viewPowerOrBreak : Maybe Power -> String
+viewPowerOrBreak maybePower =
+    case maybePower of
+        Just power ->
+            viewPower power
+
+        Nothing ->
+            "<br>"
 
 
 viewPower : Power -> String

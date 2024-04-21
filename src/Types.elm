@@ -100,7 +100,7 @@ type alias CYOA =
 type alias Section =
     { name : String
     , description : List String
-    , powers : List Power
+    , powers : List (Maybe Power)
     }
 
 
@@ -251,25 +251,32 @@ requirementToString requirement =
                     )
 
 
-groupPowers : List Power -> List ( Power, List Power )
+groupPowers : List (Maybe Power) -> List ( Power, List Power )
 groupPowers powers =
     let
         ( finalLastGroup, finalAcc ) =
             powers
                 |> List.foldl
-                    (\power ( lastGroup, acc ) ->
+                    (\maybePower ( lastGroup, acc ) ->
                         case lastGroup of
                             Nothing ->
-                                ( Just ( power, [] ), acc )
+                                ( Maybe.map (\power -> ( power, [] )) maybePower, acc )
 
                             Just ( lastPower, lastGroupAcc ) ->
-                                if power.replaces == Just lastPower.id then
-                                    ( Just ( lastPower, { power | requires = lastPower.requires } :: lastGroupAcc ), acc )
+                                case maybePower of
+                                    Nothing ->
+                                        ( Nothing
+                                        , ( lastPower, List.reverse lastGroupAcc ) :: acc
+                                        )
 
-                                else
-                                    ( Just ( power, [] )
-                                    , ( lastPower, List.reverse lastGroupAcc ) :: acc
-                                    )
+                                    Just power ->
+                                        if power.replaces == Just lastPower.id then
+                                            ( Just ( lastPower, { power | requires = lastPower.requires } :: lastGroupAcc ), acc )
+
+                                        else
+                                            ( Just ( power, [] )
+                                            , ( lastPower, List.reverse lastGroupAcc ) :: acc
+                                            )
                     )
                     ( Nothing, [] )
     in
@@ -293,7 +300,12 @@ getAlternatives { sections } =
             (\section acc ->
                 List.foldl
                     (\power ->
-                        upsert (Maybe.withDefault power.id power.replaces) power.id
+                        case power of
+                            Nothing ->
+                                identity
+
+                            Just p ->
+                                upsert (Maybe.withDefault p.id p.replaces) p.id
                     )
                     acc
                     section.powers

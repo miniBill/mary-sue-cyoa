@@ -515,6 +515,7 @@ viewScore choices sections =
                 |> List.map
                     (\{ powers } ->
                         powers
+                            |> List.filterMap identity
                             |> List.map
                                 (\{ id, cost } ->
                                     case Types.powerTier choices id of

@@ -30,7 +30,7 @@ parseSection =
         |. Parser.spaces
         |= many nonNameParser
         |. Parser.spaces
-        |= many powerParser
+        |= many powerOrBreakParser
 
 
 nonNameParser : Parser String
@@ -46,6 +46,14 @@ nonNameParser =
                 else
                     Parser.succeed s
             )
+
+
+powerOrBreakParser : Parser (Maybe Power)
+powerOrBreakParser =
+    Parser.oneOf
+        [ Parser.succeed Nothing |. Parser.symbol "<br>" |. Parser.spaces
+        , Parser.map Just powerParser
+        ]
 
 
 powerParser : Parser Power

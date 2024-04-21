@@ -1,7 +1,7 @@
 module Theme exposing (button, centralMessage, column, input, multiline, newTabLink, padding, rhythm, row, spacing, tierButtonAttrs, wrappedRow)
 
+import Color.Oklch exposing (Oklch)
 import Element exposing (Attribute, Element, centerX, centerY, el, rgb, text)
-import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
@@ -59,7 +59,7 @@ input :
         }
     -> Element msg
 input attrs config =
-    Input.text (Background.color Theme.Colors.palerViolet :: attrs) config
+    Input.text (Theme.Colors.background Theme.Colors.palerViolet :: attrs) config
 
 
 multiline :
@@ -73,7 +73,7 @@ multiline :
         }
     -> Element msg
 multiline attrs config =
-    Input.multiline (Background.color Theme.Colors.palerViolet :: attrs) config
+    Input.multiline (Theme.Colors.background Theme.Colors.palerViolet :: attrs) config
 
 
 button :
@@ -89,8 +89,8 @@ button attrs config =
             (padding
                 :: Border.width 1
                 :: Border.color (rgb 0 0 0)
-                :: Background.color Theme.Colors.palerViolet
-                :: Font.color Theme.Colors.darkViolet
+                :: Theme.Colors.background Theme.Colors.palerViolet
+                :: Theme.Colors.font Theme.Colors.darkViolet
                 :: attrs
             )
             config.label
@@ -100,7 +100,7 @@ button attrs config =
             (padding
                 :: Border.width 1
                 :: Border.color (rgb 0 0 0)
-                :: Background.color (Theme.Colors.colorToColor Theme.Colors.violet)
+                :: Theme.Colors.background Theme.Colors.violet
                 :: Font.color (rgb 1 1 1)
                 :: attrs
             )
@@ -109,11 +109,16 @@ button attrs config =
 
 tierButtonAttrs : Bool -> Tier -> List (Attribute msg)
 tierButtonAttrs selected tier =
+    let
+        tierColor : Oklch
+        tierColor =
+            Theme.Colors.tierToColor tier
+    in
     [ if selected then
-        Background.color <| Theme.Colors.colorToColor <| Theme.Colors.tierToColor tier
+        Theme.Colors.background tierColor
 
       else
-        Background.color <| Theme.Colors.colorToColor <| Theme.Colors.hslaMap (\hsla -> { hsla | saturation = 0.2 }) <| Theme.Colors.tierToColor tier
+        Theme.Colors.background { tierColor | chroma = 0.05 }
     , padding
     , Border.width 1
     ]
@@ -123,7 +128,7 @@ newTabLink : List (Attribute msg) -> { url : String, label : Element msg } -> El
 newTabLink attrs config =
     Element.newTabLink
         (Font.underline
-            :: Font.color (Theme.Colors.colorToColor Theme.Colors.violet)
+            :: Theme.Colors.font Theme.Colors.violet
             :: attrs
         )
         config

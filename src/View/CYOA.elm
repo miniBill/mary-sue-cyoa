@@ -1,7 +1,9 @@
 module View.CYOA exposing (view)
 
+import Color
+import Color.Oklch exposing (Oklch)
 import Dict exposing (Dict)
-import Element exposing (Attribute, Color, DeviceClass, Element, alignBottom, alignRight, alignTop, centerX, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
+import Element exposing (Attribute, DeviceClass, Element, alignBottom, alignRight, alignTop, centerX, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -175,16 +177,19 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
             common =
                 (if currentTier == Nothing || allRequirementsSatisfied then
                     let
-                        backgroundColor : Color
+                        backgroundColor : Oklch
                         backgroundColor =
                             case choices of
                                 Tiered _ ->
                                     case currentTier of
                                         Just tier ->
                                             if allRequirementsSatisfied then
-                                                Theme.Colors.colorToColor <|
-                                                    Theme.Colors.hslaMap (\hsla -> { hsla | lightness = 0.85 }) <|
+                                                let
+                                                    tierColor : Oklch
+                                                    tierColor =
                                                         Theme.Colors.tierToColor tier
+                                                in
+                                                { tierColor | lightness = 0.85 }
 
                                             else
                                                 Theme.Colors.missingRequisites
@@ -197,10 +202,10 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
                                         Theme.Colors.unselectedBackground
 
                                     else
-                                        rgb 0.7 1 0.7
+                                        Color.rgb 0.7 1 0.7 |> Color.Oklch.fromColor
                     in
                     [ Border.width 1
-                    , Background.color backgroundColor
+                    , Theme.Colors.background backgroundColor
                     ]
 
                  else

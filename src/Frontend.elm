@@ -7,7 +7,6 @@ import Browser.Events
 import Browser.Navigation exposing (Key)
 import Dict
 import Element exposing (DeviceClass(..), Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, link, rgb, scrollbarX, shrink, text, width)
-import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
@@ -58,8 +57,8 @@ app =
                     , Element.layout
                         [ width fill
                         , height fill
-                        , Font.color Theme.Colors.darkViolet
-                        , Background.color Theme.Colors.paleViolet
+                        , Theme.Colors.font Theme.Colors.darkViolet
+                        , Theme.Colors.background Theme.Colors.paleViolet
                         ]
                         (Element.Lazy.lazy2 view model.deviceClass model.inner)
                     ]

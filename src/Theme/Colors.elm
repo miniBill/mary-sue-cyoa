@@ -1,38 +1,43 @@
-module Theme.Colors exposing (Hsla, colorToColor, darkViolet, hslaMap, missingRequisites, paleViolet, palerViolet, tierToColor, unselectedBackground, violet)
+module Theme.Colors exposing (background, darkViolet, font, missingRequisites, paleViolet, palerViolet, tierToColor, unselectedBackground, violet)
 
 import Color
-import Element exposing (Color)
+import Color.Oklch as Oklch exposing (Oklch)
+import Element exposing (Attribute)
+import Element.Background as Background
+import Element.Font as Font
 import Types exposing (Tier(..))
 
 
-missingRequisites : Color
+missingRequisites : Oklch
 missingRequisites =
-    Element.rgb 1 0.7 0.7
+    Color.rgb 1 0.7 0.7
+        |> Oklch.fromColor
 
 
-darkViolet : Color
+darkViolet : Oklch
 darkViolet =
-    Element.rgb255 0x43 0x01 0x83
+    { violet | lightness = 0.33, chroma = 0.172 }
 
 
-violet : Color.Color
+violet : Oklch
 violet =
     Color.rgb255 0x80 0x40 0xBF
+        |> Oklch.fromColor
 
 
-palerViolet : Color
+palerViolet : Oklch
 palerViolet =
-    Element.rgb255 0xF6 0xEA 0xFE
+    { violet | lightness = 0.95, chroma = 0.029 }
 
 
-paleViolet : Color
+paleViolet : Oklch
 paleViolet =
-    Element.rgb255 0xF3 0xE3 0xFE
+    { violet | lightness = 0.92, chroma = 0.04 }
 
 
-tierToColor : Tier -> Color.Color
+tierToColor : Tier -> Oklch
 tierToColor tier =
-    case tier of
+    (case tier of
         S ->
             Color.rgb255 0x02 0xAF 0xF0
 
@@ -50,30 +55,27 @@ tierToColor tier =
 
         F ->
             Color.rgb255 0xAC 0x00 0x00
+    )
+        |> Oklch.fromColor
 
 
-unselectedBackground : Color
+unselectedBackground : Oklch
 unselectedBackground =
-    Element.rgb 0.9 0.9 1
+    Color.rgb 0.9 0.9 1
+        |> Oklch.fromColor
 
 
-hslaMap : (Hsla -> Hsla) -> Color.Color -> Color.Color
-hslaMap f c =
-    c
-        |> Color.toHsla
-        |> f
-        |> Color.fromHsla
+font : Oklch -> Attribute msg
+font color =
+    Font.color <| colorToColor <| Oklch.toColor color
 
 
-type alias Hsla =
-    { alpha : Float
-    , lightness : Float
-    , hue : Float
-    , saturation : Float
-    }
+background : Oklch -> Attribute msg
+background color =
+    Background.color <| colorToColor <| Oklch.toColor color
 
 
-colorToColor : Color.Color -> Color
+colorToColor : Color.Color -> Element.Color
 colorToColor c =
     let
         rgba : { red : Float, green : Float, blue : Float, alpha : Float }

@@ -162,7 +162,7 @@ migrate_Types_Password_Password : Evergreen.V37.Types.Password.Password -> Everg
 migrate_Types_Password_Password old =
     case old of
         Evergreen.V37.Types.Password.Password p0 ->
-            Evergreen.V41.Types.Password.Password p0
+            Evergreen.V41.Types.Password.password p0
 
 
 migrate_Types_Power : Evergreen.V37.Types.Power -> Evergreen.V41.Types.Power

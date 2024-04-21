@@ -15,9 +15,9 @@ darkViolet =
     Element.rgb255 0x43 0x01 0x83
 
 
-violet : Color
+violet : Color.Color
 violet =
-    Element.rgb255 0x80 0x40 0xBF
+    Color.rgb255 0x80 0x40 0xBF
 
 
 palerViolet : Color

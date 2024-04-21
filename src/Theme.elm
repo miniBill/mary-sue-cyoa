@@ -100,7 +100,7 @@ button attrs config =
             (padding
                 :: Border.width 1
                 :: Border.color (rgb 0 0 0)
-                :: Background.color Theme.Colors.violet
+                :: Background.color (Theme.Colors.colorToColor Theme.Colors.violet)
                 :: Font.color (rgb 1 1 1)
                 :: attrs
             )
@@ -123,7 +123,7 @@ newTabLink : List (Attribute msg) -> { url : String, label : Element msg } -> El
 newTabLink attrs config =
     Element.newTabLink
         (Font.underline
-            :: Font.color Theme.Colors.violet
+            :: Font.color (Theme.Colors.colorToColor Theme.Colors.violet)
             :: attrs
         )
         config

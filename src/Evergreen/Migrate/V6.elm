@@ -26,7 +26,6 @@ import Evergreen.V6.Password
 import Evergreen.V6.Types
 import Lamdera.Migrations exposing (..)
 import List
-import String
 
 
 frontendModel : Evergreen.V5.Types.FrontendModel -> ModelMigration Evergreen.V6.Types.FrontendModel Evergreen.V6.Types.FrontendMsg
@@ -50,7 +49,7 @@ toBackend old =
 
 
 backendMsg : Evergreen.V5.Types.BackendMsg -> MsgMigration Evergreen.V6.Types.BackendMsg Evergreen.V6.Types.BackendMsg
-backendMsg old =
+backendMsg _ =
     MsgUnchanged
 
 
@@ -61,7 +60,7 @@ toFrontend old =
 
 migrate_Types_BackendModel : Evergreen.V5.Types.BackendModel -> Evergreen.V6.Types.BackendModel
 migrate_Types_BackendModel old =
-    { cyoas = old.cyoas |> Dict.map (\k -> migrate_Types_CYOA)
+    { cyoas = old.cyoas |> Dict.map (\_ -> migrate_Types_CYOA)
     , connections = old.connections
     }
 
@@ -120,7 +119,7 @@ migrate_Types_Choices : Evergreen.V5.Types.Choices -> Evergreen.V6.Types.Choices
 migrate_Types_Choices old =
     case old of
         Evergreen.V5.Types.Tiered p0 ->
-            Evergreen.V6.Types.Tiered (p0 |> Dict.map (\k -> migrate_Types_Tier))
+            Evergreen.V6.Types.Tiered (p0 |> Dict.map (\_ -> migrate_Types_Tier))
 
         Evergreen.V5.Types.Simple p0 ->
             Evergreen.V6.Types.Simple p0
@@ -191,7 +190,7 @@ migrate_Types_InnerModel old =
         Evergreen.V5.Types.Admin p0 ->
             Evergreen.V6.Types.Admin
                 { password = p0.password |> migrate_Password_Password
-                , cyoas = p0.cyoas |> Dict.map (\k -> migrate_Types_CYOA)
+                , cyoas = p0.cyoas |> Dict.map (\_ -> migrate_Types_CYOA)
                 , inner = p0.inner |> migrate_Types_InnerAdminModel
                 }
 
@@ -304,4 +303,4 @@ migrate_Types_ToFrontend old =
             Evergreen.V6.Types.TFCYOAMissing p0
 
         Evergreen.V5.Types.TFAdmin p0 ->
-            Evergreen.V6.Types.TFAdmin (p0 |> Dict.map (\k -> migrate_Types_CYOA))
+            Evergreen.V6.Types.TFAdmin (p0 |> Dict.map (\_ -> migrate_Types_CYOA))

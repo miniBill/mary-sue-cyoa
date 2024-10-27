@@ -49,7 +49,7 @@ toBackend old =
 
 
 backendMsg : Evergreen.V6.Types.BackendMsg -> MsgMigration Evergreen.V8.Types.BackendMsg Evergreen.V8.Types.BackendMsg
-backendMsg old =
+backendMsg _ =
     MsgUnchanged
 
 
@@ -60,7 +60,7 @@ toFrontend old =
 
 migrate_Types_BackendModel : Evergreen.V6.Types.BackendModel -> Evergreen.V8.Types.BackendModel
 migrate_Types_BackendModel old =
-    { cyoas = old.cyoas |> Dict.map (\k -> migrate_Types_CYOA)
+    { cyoas = old.cyoas |> Dict.map (\_ -> migrate_Types_CYOA)
     , connections = old.connections
     }
 
@@ -119,7 +119,7 @@ migrate_Types_Choices : Evergreen.V6.Types.Choices -> Evergreen.V8.Types.Choices
 migrate_Types_Choices old =
     case old of
         Evergreen.V6.Types.Tiered p0 ->
-            Evergreen.V8.Types.Tiered (p0 |> Dict.map (\k -> migrate_Types_Tier))
+            Evergreen.V8.Types.Tiered (p0 |> Dict.map (\_ -> migrate_Types_Tier))
 
         Evergreen.V6.Types.Simple p0 ->
             Evergreen.V8.Types.Simple p0
@@ -190,7 +190,7 @@ migrate_Types_InnerModel old =
         Evergreen.V6.Types.Admin p0 ->
             Evergreen.V8.Types.Admin
                 { password = p0.password |> migrate_Password_Password
-                , cyoas = p0.cyoas |> Dict.map (\k -> migrate_Types_CYOA)
+                , cyoas = p0.cyoas |> Dict.map (\_ -> migrate_Types_CYOA)
                 , inner = p0.inner |> migrate_Types_InnerAdminModel
                 }
 
@@ -309,4 +309,4 @@ migrate_Types_ToFrontend old =
             Evergreen.V8.Types.TFCYOAMissing p0
 
         Evergreen.V6.Types.TFAdmin p0 ->
-            Evergreen.V8.Types.TFAdmin (p0 |> Dict.map (\k -> migrate_Types_CYOA))
+            Evergreen.V8.Types.TFAdmin (p0 |> Dict.map (\_ -> migrate_Types_CYOA))

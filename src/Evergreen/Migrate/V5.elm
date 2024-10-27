@@ -33,7 +33,7 @@ frontendModel old =
 
 
 backendModel : Evergreen.V1.Types.BackendModel -> ModelMigration Evergreen.V5.Types.BackendModel Evergreen.V5.Types.BackendMsg
-backendModel old =
+backendModel _ =
     ModelUnchanged
 
 
@@ -43,17 +43,17 @@ frontendMsg old =
 
 
 toBackend : Evergreen.V1.Types.ToBackend -> MsgMigration Evergreen.V5.Types.ToBackend Evergreen.V5.Types.BackendMsg
-toBackend old =
+toBackend _ =
     MsgUnchanged
 
 
 backendMsg : Evergreen.V1.Types.BackendMsg -> MsgMigration Evergreen.V5.Types.BackendMsg Evergreen.V5.Types.BackendMsg
-backendMsg old =
+backendMsg _ =
     MsgUnchanged
 
 
 toFrontend : Evergreen.V1.Types.ToFrontend -> MsgMigration Evergreen.V5.Types.ToFrontend Evergreen.V5.Types.FrontendMsg
-toFrontend old =
+toFrontend _ =
     MsgUnchanged
 
 
@@ -109,7 +109,7 @@ migrate_Types_Choices : Evergreen.V1.Types.Choices -> Evergreen.V5.Types.Choices
 migrate_Types_Choices old =
     case old of
         Evergreen.V1.Types.Tiered p0 ->
-            Evergreen.V5.Types.Tiered (p0 |> Dict.map (\k -> migrate_Types_Tier))
+            Evergreen.V5.Types.Tiered (p0 |> Dict.map (\_ -> migrate_Types_Tier))
 
         Evergreen.V1.Types.Simple p0 ->
             Evergreen.V5.Types.Simple p0

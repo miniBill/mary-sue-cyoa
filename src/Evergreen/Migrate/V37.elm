@@ -15,7 +15,7 @@ frontendModel old =
 
 
 backendModel : Evergreen.V36.Types.BackendModel -> ModelMigration Evergreen.V37.Types.BackendModel Evergreen.V37.Types.BackendMsg
-backendModel old =
+backendModel _ =
     ModelUnchanged
 
 
@@ -30,7 +30,7 @@ toBackend old =
 
 
 backendMsg : Evergreen.V36.Types.BackendMsg -> MsgMigration Evergreen.V37.Types.BackendMsg Evergreen.V37.Types.BackendMsg
-backendMsg old =
+backendMsg _ =
     MsgUnchanged
 
 
@@ -50,7 +50,7 @@ migrate_Types_FrontendModel old =
 migrate_Types_AdminModel : Evergreen.V36.Types.AdminModel -> Evergreen.V37.Types.AdminModel
 migrate_Types_AdminModel old =
     { password = old.password |> migrate_Types_Password_Password
-    , cyoas = old.cyoas |> Dict.map (\k -> migrate_Types_CYOA)
+    , cyoas = old.cyoas |> Dict.map (\_ -> migrate_Types_CYOA)
     , inner = old.inner |> migrate_Types_InnerAdminModel
     }
 
@@ -109,7 +109,7 @@ migrate_Types_Choices : Evergreen.V36.Types.Choices -> Evergreen.V37.Types.Choic
 migrate_Types_Choices old =
     case old of
         Evergreen.V36.Types.Tiered p0 ->
-            Evergreen.V37.Types.Tiered (p0 |> Dict.map (\k -> migrate_Types_Tier))
+            Evergreen.V37.Types.Tiered (p0 |> Dict.map (\_ -> migrate_Types_Tier))
 
         Evergreen.V36.Types.Simple p0 ->
             Evergreen.V37.Types.Simple p0
@@ -153,7 +153,7 @@ migrate_Types_InnerAdminModel old =
             Evergreen.V37.Types.Listing
 
         Evergreen.V36.Types.ListingUsers p0 ->
-            Evergreen.V37.Types.ListingUsers (p0 |> Dict.map (\k -> migrate_Types_User))
+            Evergreen.V37.Types.ListingUsers (p0 |> Dict.map (\_ -> migrate_Types_User))
 
         Evergreen.V36.Types.PasswordResetDone p0 p1 ->
             Evergreen.V37.Types.PasswordResetDone p0 p1
@@ -330,10 +330,10 @@ migrate_Types_ToFrontend old =
             Evergreen.V37.Types.TFCYOAMissing p0
 
         Evergreen.V36.Types.TFAdmin p0 ->
-            Evergreen.V37.Types.TFAdmin (p0 |> Dict.map (\k -> migrate_Types_CYOA))
+            Evergreen.V37.Types.TFAdmin (p0 |> Dict.map (\_ -> migrate_Types_CYOA))
 
         Evergreen.V36.Types.TFUsers p0 ->
-            Evergreen.V37.Types.TFUsers (p0 |> Dict.map (\k -> migrate_Types_User))
+            Evergreen.V37.Types.TFUsers (p0 |> Dict.map (\_ -> migrate_Types_User))
 
         Evergreen.V36.Types.TFResetPassword p0 p1 ->
             Evergreen.V37.Types.TFResetPassword p0 p1

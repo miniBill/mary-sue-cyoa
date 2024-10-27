@@ -34,7 +34,7 @@ frontendModel old =
 
 
 backendModel : Evergreen.V23.Types.BackendModel -> ModelMigration Evergreen.V27.Types.BackendModel Evergreen.V27.Types.BackendMsg
-backendModel old =
+backendModel _ =
     ModelUnchanged
 
 
@@ -44,17 +44,17 @@ frontendMsg old =
 
 
 toBackend : Evergreen.V23.Types.ToBackend -> MsgMigration Evergreen.V27.Types.ToBackend Evergreen.V27.Types.BackendMsg
-toBackend old =
+toBackend _ =
     MsgUnchanged
 
 
 backendMsg : Evergreen.V23.Types.BackendMsg -> MsgMigration Evergreen.V27.Types.BackendMsg Evergreen.V27.Types.BackendMsg
-backendMsg old =
+backendMsg _ =
     MsgUnchanged
 
 
 toFrontend : Evergreen.V23.Types.ToFrontend -> MsgMigration Evergreen.V27.Types.ToFrontend Evergreen.V27.Types.FrontendMsg
-toFrontend old =
+toFrontend _ =
     MsgUnchanged
 
 
@@ -106,7 +106,7 @@ migrate_Types_Choices : Evergreen.V23.Types.Choices -> Evergreen.V27.Types.Choic
 migrate_Types_Choices old =
     case old of
         Evergreen.V23.Types.Tiered p0 ->
-            Evergreen.V27.Types.Tiered (p0 |> Dict.map (\k -> migrate_Types_Tier))
+            Evergreen.V27.Types.Tiered (p0 |> Dict.map (\_ -> migrate_Types_Tier))
 
         Evergreen.V23.Types.Simple p0 ->
             Evergreen.V27.Types.Simple p0
@@ -180,7 +180,7 @@ migrate_Types_InnerModel old =
         Evergreen.V23.Types.Admin p0 ->
             Evergreen.V27.Types.Admin
                 { password = p0.password |> migrate_Types_Password_Password
-                , cyoas = p0.cyoas |> Dict.map (\k -> migrate_Types_CYOA)
+                , cyoas = p0.cyoas |> Dict.map (\_ -> migrate_Types_CYOA)
                 , inner = p0.inner |> migrate_Types_InnerAdminModel
                 }
 

@@ -14,7 +14,7 @@ import Element.Lazy
 import Html
 import Lamdera exposing (UrlRequest)
 import Maybe.Extra
-import Set
+import Set exposing (Set)
 import Task
 import Theme
 import Theme.Colors
@@ -74,14 +74,13 @@ app =
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 updateFromBackend msg ({ inner } as model) =
     let
-        newInner : InnerModel
-        newInner =
+        ( newInner, cmd ) =
             case msg of
                 TFCYOAMissing cyoaId ->
-                    NotFound cyoaId
+                    ( NotFound cyoaId, Cmd.none )
 
                 TFRenamedCYOA from to ->
-                    case inner of
+                    ( case inner of
                         Admin admin ->
                             case Dict.get from admin.cyoas of
                                 Nothing ->
@@ -98,9 +97,11 @@ updateFromBackend msg ({ inner } as model) =
 
                         _ ->
                             inner
+                    , Cmd.none
+                    )
 
                 TFTransferredCYOA cyoaId userId ->
-                    case inner of
+                    ( case inner of
                         Admin admin ->
                             case Dict.get cyoaId admin.cyoas of
                                 Nothing ->
@@ -117,9 +118,11 @@ updateFromBackend msg ({ inner } as model) =
 
                         _ ->
                             inner
+                    , Cmd.none
+                    )
 
                 TFDeletedCYOA cyoaId ->
-                    case inner of
+                    ( case inner of
                         Loading id _ ->
                             if id == cyoaId then
                                 Homepage
@@ -161,39 +164,70 @@ updateFromBackend msg ({ inner } as model) =
 
                         _ ->
                             inner
+                    , Cmd.none
+                    )
 
                 TFGotCYOA cyoaId cyoa ->
                     case inner of
                         Loading id choices ->
                             if id == cyoaId then
-                                Loaded
-                                    { cyoaId = cyoaId
-                                    , choices = choices
-                                    , data = cyoa
-                                    , compact = False
-                                    }
+                                let
+                                    cleaned :
+                                        { cyoaId : CYOAId
+                                        , choices : Choices
+                                        , compact : Bool
+                                        , data : Types.CYOA
+                                        }
+                                    cleaned =
+                                        { cyoaId = cyoaId
+                                        , choices = choices
+                                        , data = cyoa
+                                        , compact = False
+                                        }
+                                            |> cleanObsoleteChoices
+                                in
+                                ( Loaded cleaned
+                                , Browser.Navigation.replaceUrl model.key
+                                    (choicesToUrl cyoaId cleaned.choices)
+                                )
 
                             else
-                                inner
+                                ( inner, Cmd.none )
 
                         Loaded loaded ->
                             if loaded.cyoaId == cyoaId then
-                                Loaded { loaded | data = cyoa }
+                                let
+                                    cleaned :
+                                        { cyoaId : CYOAId
+                                        , choices : Choices
+                                        , compact : Bool
+                                        , data : Types.CYOA
+                                        }
+                                    cleaned =
+                                        { loaded | data = cyoa }
+                                            |> cleanObsoleteChoices
+                                in
+                                ( Loaded cleaned
+                                , Browser.Navigation.replaceUrl model.key
+                                    (choicesToUrl cyoaId cleaned.choices)
+                                )
 
                             else
-                                inner
+                                ( inner, Cmd.none )
 
                         Admin admin ->
-                            Admin
+                            ( Admin
                                 { admin
                                     | cyoas = Dict.insert cyoaId cyoa admin.cyoas
                                 }
+                            , Cmd.none
+                            )
 
                         _ ->
-                            inner
+                            ( inner, Cmd.none )
 
                 TFAdmin cyoas ->
-                    case inner of
+                    ( case inner of
                         Login { password } ->
                             Admin
                                 { password = password
@@ -206,32 +240,79 @@ updateFromBackend msg ({ inner } as model) =
 
                         _ ->
                             inner
+                    , Cmd.none
+                    )
 
                 TFUsers users ->
-                    case inner of
+                    ( case inner of
                         Admin admin ->
                             Admin { admin | inner = ListingUsers users }
 
                         _ ->
                             inner
+                    , Cmd.none
+                    )
 
                 TFResetPassword userId password ->
-                    case inner of
+                    ( case inner of
                         Admin admin ->
                             Admin { admin | inner = PasswordResetDone userId password }
 
                         _ ->
                             inner
+                    , Cmd.none
+                    )
 
                 TFCreatedUser userId password ->
-                    case inner of
+                    ( case inner of
                         Admin admin ->
                             Admin { admin | inner = CreateUserDone userId password }
 
                         _ ->
                             inner
+                    , Cmd.none
+                    )
     in
-    ( { model | inner = newInner }, Cmd.none )
+    ( { model | inner = newInner }, cmd )
+
+
+cleanObsoleteChoices :
+    { cyoaId : CYOAId
+    , choices : Choices
+    , data : Types.CYOA
+    , compact : Bool
+    }
+    ->
+        { cyoaId : CYOAId
+        , choices : Choices
+        , compact : Bool
+        , data : Types.CYOA
+        }
+cleanObsoleteChoices model =
+    let
+        existing : Set CYOAId
+        existing =
+            model.data.sections
+                |> List.concatMap
+                    (\section ->
+                        section.powers
+                            |> List.filterMap (Maybe.map (\power -> power.id))
+                    )
+                |> Set.fromList
+    in
+    { model
+        | choices =
+            case model.choices of
+                Tiered dict ->
+                    dict
+                        |> Dict.filter (\key _ -> Set.member key existing)
+                        |> Tiered
+
+                Simple simple ->
+                    simple
+                        |> Set.filter (\key -> Set.member key existing)
+                        |> Simple
+    }
 
 
 init : Url -> Key -> ( FrontendModel, Cmd FrontendMsg )

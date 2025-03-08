@@ -1,13 +1,8 @@
 module View.CYOA exposing (view)
 
-import Color
+import Color exposing (rgb)
 import Color.Oklch exposing (Oklch)
 import Dict exposing (Dict)
-import Element exposing (Attribute, DeviceClass, Element, alignBottom, alignRight, alignTop, centerX, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
-import Element.Background as Background
-import Element.Border as Border
-import Element.Font as Font
-import Element.Input as Input
 import EnglishNumbers
 import Html
 import List.Extra
@@ -16,7 +11,10 @@ import Markdown.Renderer
 import Set
 import Theme
 import Theme.Colors
-import Types exposing (CYOAId, Choices(..), Power, Requirement(..), Section, Tier(..))
+import Types exposing (CYOAId, Choices(..), DeviceClass(..), Power, Requirement(..), Section, Tier(..))
+import Ui exposing (Attribute, Element, alignBottom, alignRight, alignTop, centerX, el, fill, height, text, width)
+import Ui.Font as Font
+import Ui.Prose exposing (paragraph)
 
 
 view : DeviceClass -> Maybe (String -> Maybe Tier -> msg) -> { a | choices : Choices, data : { b | sections : List Section }, compact : Bool } -> Element msg
@@ -27,8 +25,8 @@ view deviceClass chooseTier innerModel =
             Types.getAlternatives innerModel.data
     in
     Theme.column
-        [ scrollbarY
-        , paddingEach
+        [ Ui.scrollable
+        , Ui.paddingWith
             { top = 0
             , left = Theme.rhythm
             , right = Theme.rhythm
@@ -45,7 +43,7 @@ view deviceClass chooseTier innerModel =
 viewSection : DeviceClass -> Dict CYOAId (List String) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Bool -> Section -> Element msg
 viewSection deviceClass alternatives chooseTier choices compact section =
     Theme.column
-        [ Border.width 1
+        [ Ui.border 1
         , Theme.padding
         , width fill
         ]
@@ -85,10 +83,10 @@ viewMarkdown source =
                     text source
 
                 Ok [ html ] ->
-                    Element.html html
+                    Ui.html html
 
                 Ok html ->
-                    Element.html <| Html.span [] html
+                    Ui.html <| Html.span [] html
 
 
 viewPower : DeviceClass -> Dict CYOAId (List String) -> List (Attribute msg) -> { tiersBelow : Bool } -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Bool -> Power -> Element msg
@@ -99,7 +97,7 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
             Types.powerTier choices power.id
     in
     if compact && currentTier == Nothing then
-        Element.none
+        Ui.none
 
     else
         let
@@ -129,7 +127,7 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
                         ]
                     , case power.replaces of
                         Nothing ->
-                            Element.none
+                            Ui.none
 
                         Just replaces ->
                             paragraph [ Font.italic ] <|
@@ -138,7 +136,7 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
                                 , text ")"
                                 ]
                     , if List.isEmpty power.requires then
-                        Element.none
+                        Ui.none
 
                       else
                         paragraph [ Font.italic ] <|
@@ -151,7 +149,7 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
                             ++ [ Theme.row [ centerX, alignBottom ] children ]
                             |> Theme.column [ width fill, height fill ]
 
-                      else if deviceClass == Element.Phone then
+                      else if deviceClass == Phone then
                         Theme.column [ width fill ]
                             [ Theme.column [ width fill, height fill ] descriptionRows
                             , Theme.row [ centerX, alignBottom ] children
@@ -204,23 +202,24 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
                                     else
                                         Color.rgb 0.7 1 0.7 |> Color.Oklch.fromColor
                     in
-                    [ Border.width 1
+                    [ Ui.border 1
                     , Theme.Colors.background backgroundColor
                     ]
 
                  else
-                    [ Border.color <| rgb 1 0 0
-                    , Border.width 2
+                    [ Ui.borderColor <| rgb 1 0 0
+                    , Ui.border 2
                     , case choices of
                         Tiered _ ->
-                            Background.color <| rgb 0.6 0.6 0.6
+                            Ui.background <| rgb 0.6 0.6 0.6
 
                         Simple _ ->
-                            Background.color <| rgb 1 0.6 0.6
+                            Ui.background <| rgb 1 0.6 0.6
                     ]
                 )
                     ++ [ Theme.padding
-                       , width <| Element.minimum 250 fill
+                       , width fill
+                       , Ui.widthMin 250
                        ]
                     ++ attrs
 
@@ -243,18 +242,20 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
                                     selected : Bool
                                     selected =
                                         Just tier == currentTier
-                                in
-                                Input.button
-                                    (Theme.tierButtonAttrs selected tier)
-                                    { onPress =
-                                        toMsg <|
-                                            if selected then
-                                                Nothing
 
-                                            else
-                                                Just tier
-                                    , label = text <| Types.tierToString tier
-                                    }
+                                    msg : Maybe Tier
+                                    msg =
+                                        if selected then
+                                            Nothing
+
+                                        else
+                                            Just tier
+                                in
+                                el
+                                    (Theme.buttonAttr (toMsg msg)
+                                        :: Theme.tierButtonAttrs selected tier
+                                    )
+                                    (text <| Types.tierToString tier)
                             )
                             [ S, A, B, C, D, F ]
                 in
@@ -262,16 +263,18 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
                     label tierButtons
 
             Simple _ ->
-                Input.button common
-                    { onPress =
-                        toMsg <|
-                            if currentTier == Nothing then
-                                Just S
+                let
+                    msg : Maybe Tier
+                    msg =
+                        if currentTier == Nothing then
+                            Just S
 
-                            else
-                                Nothing
-                    , label = label []
-                    }
+                        else
+                            Nothing
+                in
+                el
+                    (Theme.buttonAttr (toMsg msg) :: common)
+                    (label [])
 
 
 viewRequirement : Dict CYOAId (List String) -> Choices -> Maybe Tier -> Requirement -> List (Element msg)

@@ -5,12 +5,8 @@ import Browser
 import Browser.Dom
 import Browser.Events
 import Browser.Navigation exposing (Key)
+import Color exposing (rgb)
 import Dict
-import Element exposing (DeviceClass(..), Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, link, rgb, scrollbarX, shrink, text, width)
-import Element.Border as Border
-import Element.Font as Font
-import Element.Input as Input
-import Element.Lazy
 import Html
 import Lamdera exposing (UrlRequest)
 import Maybe.Extra
@@ -18,8 +14,13 @@ import Set exposing (Set)
 import Task
 import Theme
 import Theme.Colors
-import Types exposing (AdminModel, AdminMsg(..), CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..))
+import Types exposing (AdminModel, AdminMsg(..), CYOAId, Choices(..), DeviceClass(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..))
 import Types.Password as Password exposing (Password)
+import Ui exposing (Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, shrink, text, width)
+import Ui.Font as Font
+import Ui.Input as Input
+import Ui.Lazy
+import Ui.Table
 import Url exposing (Url)
 import Url.Builder
 import View.Admin
@@ -45,22 +46,18 @@ app =
                     [ Html.node "style"
                         []
                         [ Html.text """
-                            .max-height-6969 {
-                                max-height: calc(100vh - 100px) !important;
-                            }
-
                             p {
                                 margin: 0;
                             }
                             """
                         ]
-                    , Element.layout
+                    , Ui.layout Ui.default
                         [ width fill
                         , height fill
                         , Theme.Colors.font Theme.Colors.darkViolet
                         , Theme.Colors.background Theme.Colors.paleViolet
                         ]
-                        (Element.Lazy.lazy2 view model.deviceClass model.inner)
+                        (Ui.Lazy.lazy2 view model.deviceClass model.inner)
                     ]
                 }
         , update = update
@@ -321,19 +318,13 @@ init url key =
         appUrl : AppUrl
         appUrl =
             AppUrl.fromUrl url
-    in
-    case appUrl.path of
-        [] ->
-            ( { key = key
-              , inner = Homepage
-              , deviceClass = Desktop
-              }
-            , measureScreen
-            )
 
-        [ "admin" ] ->
-            let
-                ( inner, cmd ) =
+        ( inner, cmd ) =
+            case appUrl.path of
+                [] ->
+                    ( Homepage, Cmd.none )
+
+                [ "admin" ] ->
                     case Dict.get "key" appUrl.queryParameters of
                         Just [ passwordString ] ->
                             let
@@ -344,6 +335,7 @@ init url key =
                             ( { password = password
                               , loggingIn = True
                               }
+                                |> Login
                             , Lamdera.sendToBackend <| TBAuthenticated password TBLogin
                             )
 
@@ -351,31 +343,26 @@ init url key =
                             ( { password = Password.password ""
                               , loggingIn = False
                               }
+                                |> Login
                             , Cmd.none
                             )
-            in
-            ( { key = key
-              , inner = Login inner
-              , deviceClass = Desktop
-              }
-            , Cmd.batch [ cmd, measureScreen ]
-            )
 
-        _ ->
-            let
-                cyoaId : CYOAId
-                cyoaId =
-                    String.join "/" appUrl.path
-            in
-            ( { key = key
-              , inner = Loading cyoaId <| urlToChoices appUrl
-              , deviceClass = Desktop
-              }
-            , Cmd.batch
-                [ Lamdera.sendToBackend <| TBGetCYOA cyoaId
-                , measureScreen
-                ]
-            )
+                _ ->
+                    let
+                        cyoaId : CYOAId
+                        cyoaId =
+                            String.join "/" appUrl.path
+                    in
+                    ( Loading cyoaId <| urlToChoices appUrl
+                    , Lamdera.sendToBackend <| TBGetCYOA cyoaId
+                    )
+    in
+    ( { key = key
+      , deviceClass = TabletOrDesktop
+      , inner = inner
+      }
+    , Cmd.batch [ cmd, measureScreen ]
+    )
 
 
 measureScreen : Cmd FrontendMsg
@@ -393,23 +380,23 @@ view : DeviceClass -> InnerModel -> Element FrontendMsg
 view deviceClass inner =
     case inner of
         Homepage ->
-            link
+            el
                 [ centerX
                 , centerY
                 , Font.size 48
                 , Font.underline
+                , Ui.link "https://en.wikipedia.org/wiki/Mary_Sue"
                 ]
-                { url = "https://en.wikipedia.org/wiki/Mary_Sue"
-                , label = text "Mary Sue"
-                }
+                (text "Mary Sue")
 
         Loading cyoaId _ ->
             Theme.centralMessage <| "Loading " ++ cyoaId ++ "..."
 
         NotFound _ ->
             image [ centerX, centerY ]
-                { src = "/404.png"
+                { source = "/404.png"
                 , description = "CYOA not found"
+                , onLoad = Nothing
                 }
 
         Loaded innerModel ->
@@ -424,7 +411,7 @@ view deviceClass inner =
                             False
             in
             column [ height fill, width fill ]
-                [ (if deviceClass == Element.Phone && isTiered then
+                [ (if deviceClass == Phone && isTiered then
                     Theme.column
 
                    else
@@ -443,15 +430,17 @@ view deviceClass inner =
 
             else
                 Theme.column [ centerX, centerY ]
-                    [ Element.map Password <| Password.input login.password
-                    , Input.button [ Border.width 1, Theme.padding ]
-                        { label = text "Login"
-                        , onPress = Just TryLogin
-                        }
+                    [ Ui.map Password <| Password.input login.password
+                    , el
+                        [ Ui.border 1
+                        , Theme.padding
+                        , Input.button TryLogin
+                        ]
+                        (text "Login")
                     ]
 
         Admin admin ->
-            Element.map AdminMsg <|
+            Ui.map AdminMsg <|
                 View.Admin.view deviceClass admin
 
 
@@ -466,7 +455,7 @@ urlToChoices appUrl =
         tiered : Maybe (List ( String, Tier ))
         tiered =
             list
-                |> Maybe.Extra.traverse
+                |> Maybe.Extra.combineMap
                     (\( key, tier ) ->
                         Maybe.map (Tuple.pair key) (tierFromString tier)
                     )
@@ -541,7 +530,7 @@ viewToggles choices compact =
     let
         kindRadio : Element FrontendMsg
         kindRadio =
-            Input.radioRow
+            Input.chooseOne Ui.row
                 [ Theme.spacing
                 , alignRight
                 ]
@@ -562,15 +551,23 @@ viewToggles choices compact =
 
         compactCheck : Element FrontendMsg
         compactCheck =
-            Input.checkbox
-                [ Theme.spacing
-                , alignRight
+            let
+                label : { element : Element msg, id : Input.Label }
+                label =
+                    Input.label "compact" [] (text "Hide unselected options")
+            in
+            Ui.row []
+                [ Input.checkbox
+                    [ Theme.spacing
+                    , alignRight
+                    ]
+                    { checked = compact
+                    , onChange = Compact
+                    , label = label.id
+                    , icon = Nothing
+                    }
+                , label.element
                 ]
-                { checked = compact
-                , onChange = Compact
-                , label = Input.labelRight [] <| text "Hide unselected options"
-                , icon = Input.defaultCheckbox
-                }
     in
     Theme.column [ alignRight, alignTop ]
         [ kindRadio
@@ -633,34 +630,34 @@ viewScore choices sections =
                         |> Tuple.second
                         |> List.reverse
             in
-            { data =
+            Ui.Table.view
+                [ Ui.scrollableX
+                , height shrink
+                , Ui.widthMin 126
+                , width fill
+                ]
+                (Ui.Table.columns
+                    (Ui.Table.column
+                        { header = Ui.Table.cell [] Ui.none
+                        , view = \( rowTier, _ ) -> Ui.Table.cell [ Theme.padding ] <| text rowTier
+                        }
+                        :: List.map
+                            (\( colTier, colAll ) ->
+                                Ui.Table.column
+                                    { header = Ui.Table.cell [] (tierLabel colTier)
+                                    , view =
+                                        \( _, rowSum ) ->
+                                            Ui.Table.cell
+                                                (Font.center :: Theme.tierButtonAttrs True colTier)
+                                                (text <| String.fromInt <| rowSum colAll)
+                                    }
+                            )
+                            accTiers
+                    )
+                )
                 [ ( "Costs", sumCosts )
                 , ( "Points", sumGains )
                 ]
-            , columns =
-                accTiers
-                    |> List.map
-                        (\( colTier, colAll ) ->
-                            { width = shrink
-                            , header = tierLabel colTier
-                            , view =
-                                \( _, rowSum ) ->
-                                    el
-                                        (Font.center :: Theme.tierButtonAttrs True colTier)
-                                        (text <| String.fromInt <| rowSum colAll)
-                            }
-                        )
-                    |> (::)
-                        { width = shrink
-                        , header = Element.none
-                        , view = \( rowTier, _ ) -> el [ Theme.padding ] <| text rowTier
-                        }
-            }
-                |> Element.table
-                    [ scrollbarX
-                    , height <| Element.minimum 126 shrink
-                    , width fill
-                    ]
 
         Simple _ ->
             let
@@ -685,9 +682,14 @@ viewScore choices sections =
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 update msg model =
     case ( msg, model.inner ) of
-        ( Resize w h, _ ) ->
+        ( Resize w _, _ ) ->
             ( { model
-                | deviceClass = (Element.classifyDevice { height = h, width = w }).class
+                | deviceClass =
+                    if w > 600 then
+                        TabletOrDesktop
+
+                    else
+                        Phone
               }
             , Cmd.none
             )

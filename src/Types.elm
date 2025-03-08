@@ -1,14 +1,18 @@
-module Types exposing (AdminModel, AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Requirement(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..), User, UserId, getAlternatives, groupPowers, powerTier, requirementToString, tierToString)
+module Types exposing (AdminModel, AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId, Choices(..), DeviceClass(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Requirement(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..), User, UserId, getAlternatives, groupPowers, powerTier, requirementToString, tierToString)
 
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
-import Element exposing (DeviceClass)
 import EnglishNumbers
 import Lamdera exposing (ClientId)
 import Set exposing (Set)
 import Types.Password exposing (Password)
 import Url exposing (Url)
+
+
+type DeviceClass
+    = Phone
+    | TabletOrDesktop
 
 
 type alias FrontendModel =

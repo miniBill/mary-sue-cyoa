@@ -1,7 +1,7 @@
 module Types.Password exposing (Password, input, isCorrect, password)
 
-import Element exposing (Element, text)
-import Element.Input as Input
+import Ui exposing (Element, text)
+import Ui.Input as Input
 
 
 type Password
@@ -20,10 +20,21 @@ password =
 
 input : Password -> Element Password
 input (Password pwd) =
-    Input.currentPassword []
-        { onChange = Password
-        , label = Input.labelAbove [] <| text "Password"
-        , placeholder = Nothing
-        , show = False
-        , text = pwd
-        }
+    let
+        label :
+            { element : Element msg
+            , id : Input.Label
+            }
+        label =
+            Input.label "password" [] (text "Password")
+    in
+    Ui.column []
+        [ label.element
+        , Input.currentPassword []
+            { onChange = Password
+            , label = label.id
+            , placeholder = Nothing
+            , show = False
+            , text = pwd
+            }
+        ]

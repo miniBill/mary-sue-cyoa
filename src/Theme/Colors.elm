@@ -2,10 +2,9 @@ module Theme.Colors exposing (background, darkViolet, font, missingRequisites, p
 
 import Color
 import Color.Oklch as Oklch exposing (Oklch)
-import Element exposing (Attribute)
-import Element.Background as Background
-import Element.Font as Font
 import Types exposing (Tier(..))
+import Ui exposing (Attribute)
+import Ui.Font as Font
 
 
 missingRequisites : Oklch
@@ -67,19 +66,9 @@ unselectedBackground =
 
 font : Oklch -> Attribute msg
 font color =
-    Font.color <| colorToColor <| Oklch.toColor color
+    Font.color <| Oklch.toColor color
 
 
 background : Oklch -> Attribute msg
 background color =
-    Background.color <| colorToColor <| Oklch.toColor color
-
-
-colorToColor : Color.Color -> Element.Color
-colorToColor c =
-    let
-        rgba : { red : Float, green : Float, blue : Float, alpha : Float }
-        rgba =
-            Color.toRgba c
-    in
-    Element.rgba rgba.red rgba.green rgba.blue rgba.alpha
+    Ui.background <| Oklch.toColor color

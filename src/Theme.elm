@@ -1,22 +1,22 @@
-module Theme exposing (button, centralMessage, column, input, multiline, newTabLink, padding, rhythm, row, spacing, tierButtonAttrs, wrappedRow)
+module Theme exposing (button, buttonAttr, centralMessage, column, input, multiline, newTabLink, padding, rhythm, row, spacing, tierButtonAttrs, wrappedRow)
 
+import Color exposing (rgb)
 import Color.Oklch exposing (Oklch)
-import Element exposing (Attribute, Element, centerX, centerY, el, rgb, text)
-import Element.Border as Border
-import Element.Font as Font
-import Element.Input as Input
 import Theme.Colors
 import Types exposing (Tier)
+import Ui exposing (Attribute, Element, centerX, centerY, el, text)
+import Ui.Font as Font
+import Ui.Input as Input
 
 
 padding : Attribute msg
 padding =
-    Element.padding rhythm
+    Ui.padding rhythm
 
 
 spacing : Attribute msg
 spacing =
-    Element.spacing rhythm
+    Ui.spacing rhythm
 
 
 rhythm : number
@@ -26,17 +26,17 @@ rhythm =
 
 row : List (Attribute msg) -> List (Element msg) -> Element msg
 row attrs =
-    Element.row (spacing :: attrs)
+    Ui.row (spacing :: attrs)
 
 
 wrappedRow : List (Attribute msg) -> List (Element msg) -> Element msg
 wrappedRow attrs =
-    Element.wrappedRow (spacing :: attrs)
+    Ui.row (Ui.wrap :: spacing :: attrs)
 
 
 column : List (Attribute msg) -> List (Element msg) -> Element msg
 column attrs =
-    Element.column (spacing :: attrs)
+    Ui.column (spacing :: attrs)
 
 
 centralMessage : String -> Element msg
@@ -52,28 +52,57 @@ centralMessage message =
 input :
     List (Attribute msg)
     ->
-        { onChange : String -> msg
+        { id : String
+        , onChange : String -> msg
         , text : String
-        , placeholder : Maybe (Input.Placeholder msg)
-        , label : Input.Label msg
+        , label : Element msg
+        , placeholder : Maybe String
         }
     -> Element msg
 input attrs config =
-    Input.text (Theme.Colors.background Theme.Colors.palerViolet :: attrs) config
+    let
+        label : { element : Element msg, id : Input.Label }
+        label =
+            Input.label config.id [] config.label
+    in
+    column []
+        [ label.element
+        , Input.text (Theme.Colors.background Theme.Colors.palerViolet :: attrs)
+            { onChange = config.onChange
+            , label = label.id
+            , text = config.text
+            , placeholder = config.placeholder
+            }
+        ]
 
 
 multiline :
     List (Attribute msg)
     ->
-        { onChange : String -> msg
+        { id : String
+        , onChange : String -> msg
         , text : String
-        , placeholder : Maybe (Input.Placeholder msg)
-        , label : Input.Label msg
+        , label : Element msg
+        , placeholder : Maybe String
         , spellcheck : Bool
         }
     -> Element msg
 multiline attrs config =
-    Input.multiline (Theme.Colors.background Theme.Colors.palerViolet :: attrs) config
+    let
+        label : { element : Element msg, id : Input.Label }
+        label =
+            Input.label config.id [] config.label
+    in
+    column []
+        [ label.element
+        , Input.multiline (Theme.Colors.background Theme.Colors.palerViolet :: attrs)
+            { onChange = config.onChange
+            , label = label.id
+            , text = config.text
+            , spellcheck = config.spellcheck
+            , placeholder = config.placeholder
+            }
+        ]
 
 
 button :
@@ -84,27 +113,31 @@ button :
         }
     -> Element msg
 button attrs config =
-    if config.onPress == Nothing then
-        el
-            (padding
-                :: Border.width 1
-                :: Border.color (rgb 0 0 0)
-                :: Theme.Colors.background Theme.Colors.palerViolet
-                :: Theme.Colors.font Theme.Colors.darkViolet
+    let
+        common : List (Attribute msg)
+        common =
+            padding
+                :: Ui.border 1
+                :: Ui.borderColor (rgb 0 0 0)
                 :: attrs
-            )
-            config.label
+    in
+    case config.onPress of
+        Nothing ->
+            el
+                (Theme.Colors.background Theme.Colors.palerViolet
+                    :: Theme.Colors.font Theme.Colors.darkViolet
+                    :: common
+                )
+                config.label
 
-    else
-        Input.button
-            (padding
-                :: Border.width 1
-                :: Border.color (rgb 0 0 0)
-                :: Theme.Colors.background Theme.Colors.violet
-                :: Font.color (rgb 1 1 1)
-                :: attrs
-            )
-            config
+        Just msg ->
+            Ui.el
+                (Input.button msg
+                    :: Theme.Colors.background Theme.Colors.violet
+                    :: Font.color (rgb 1 1 1)
+                    :: common
+                )
+                config.label
 
 
 tierButtonAttrs : Bool -> Tier -> List (Attribute msg)
@@ -120,15 +153,26 @@ tierButtonAttrs selected tier =
       else
         Theme.Colors.background { tierColor | chroma = 0.05 }
     , padding
-    , Border.width 1
+    , Ui.border 1
     ]
 
 
 newTabLink : List (Attribute msg) -> { url : String, label : Element msg } -> Element msg
 newTabLink attrs config =
-    Element.newTabLink
-        (Font.underline
+    Ui.el
+        (Ui.linkNewTab config.url
+            :: Font.underline
             :: Theme.Colors.font Theme.Colors.violet
             :: attrs
         )
-        config
+        config.label
+
+
+buttonAttr : Maybe msg -> Attribute msg
+buttonAttr maybeMsg =
+    case maybeMsg of
+        Just msg ->
+            Input.button msg
+
+        Nothing ->
+            Ui.noAttr

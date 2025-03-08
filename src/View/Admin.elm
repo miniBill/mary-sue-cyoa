@@ -1,15 +1,17 @@
 module View.Admin exposing (view)
 
 import CYOAParser
+import Color exposing (rgb)
 import Dict exposing (Dict)
-import Element exposing (DeviceClass, Element, alignRight, alignTop, centerY, el, fill, height, inFront, paragraph, rgb, shrink, spacing, table, text, width)
-import Element.Font as Font
-import Element.Input as Input
 import Parser
 import Set
 import Theme
-import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Section, UserId)
+import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), DeviceClass, InnerAdminModel(..), Power, Section, UserId)
 import Types.Password exposing (Password)
+import Ui exposing (Element, alignRight, alignTop, centerY, el, fill, height, inFront, shrink, spacing, text, width)
+import Ui.Font as Font
+import Ui.Prose exposing (paragraph)
+import Ui.Table as Table
 import Url
 import Url.Builder
 import View.CYOA
@@ -44,7 +46,7 @@ view deviceClass admin =
 
         PasswordResetDone userId password ->
             [ paragraph []
-                [ text <| "Password reset successfull: user " ++ userId ++ " now has password "
+                [ text <| "Password reset successful: user " ++ userId ++ " now has password "
                 , el [ Font.family [ Font.monospace ] ] <| text password
                 ]
             ]
@@ -67,9 +69,10 @@ view deviceClass admin =
 viewCreating : CYOAId -> List (Element AdminMsg)
 viewCreating cyoaId =
     [ Theme.input []
-        { label = Input.labelAbove [] <| text "Id"
+        { id = "id"
+        , label = text "Id"
         , text = cyoaId
-        , placeholder = Just <| Input.placeholder [] <| text "bestest-notebook-ever"
+        , placeholder = Just "bestest-notebook-ever"
         , onChange = CreatePrepare
         }
     , Theme.button []
@@ -82,9 +85,10 @@ viewCreating cyoaId =
 viewCreatingUser : UserId -> List (Element AdminMsg)
 viewCreatingUser userId =
     [ Theme.input []
-        { label = Input.labelAbove [] <| text "Username"
+        { id = "username"
+        , label = text "Username"
         , text = userId
-        , placeholder = Just <| Input.placeholder [] <| text "username"
+        , placeholder = Just "username"
         , onChange = CreateUserPrepare
         }
     , Theme.button []
@@ -97,9 +101,10 @@ viewCreatingUser userId =
 viewRenaming : CYOAId -> CYOAId -> List (Element AdminMsg)
 viewRenaming from to =
     [ Theme.input []
-        { label = Input.labelAbove [] <| paragraph [] [ text <| "You are renaming ", el [ Font.family [ Font.monospace ] ] <| text from, text " to" ]
+        { id = "rename-to"
+        , label = paragraph [] [ text <| "You are renaming ", el [ Font.family [ Font.monospace ] ] <| text from, text " to" ]
         , text = to
-        , placeholder = Just <| Input.placeholder [] <| text "bestest-notebook-ever"
+        , placeholder = Just "bestest-notebook-ever"
         , onChange = RenamePrepare from
         }
     , Theme.button []
@@ -112,9 +117,10 @@ viewRenaming from to =
 viewTransferring : CYOAId -> UserId -> List (Element AdminMsg)
 viewTransferring cyoaId userId =
     [ Theme.input []
-        { label = Input.labelAbove [] <| paragraph [] [ text <| "You are transferring ", el [ Font.family [ Font.monospace ] ] <| text cyoaId, text " to" ]
+        { id = "transfer-to"
+        , label = paragraph [] [ text <| "You are transferring ", el [ Font.family [ Font.monospace ] ] <| text cyoaId, text " to" ]
         , text = userId
-        , placeholder = Just <| Input.placeholder [] <| text "admin"
+        , placeholder = Just "admin"
         , onChange = TransferPrepare cyoaId
         }
     , Theme.button []
@@ -132,9 +138,10 @@ viewEditing deviceClass cyoaId old current preview =
             Theme.multiline
                 [ alignTop
                 , width fill
-                , height <| Element.maximum 6969 fill
+                , height fill
                 ]
-                { label = Input.labelAbove [] <| text "Content"
+                { id = "content"
+                , label = text "Content"
                 , text = current
                 , onChange = \newValue -> UpdatePrepare cyoaId old newValue preview
                 , placeholder = Nothing
@@ -195,7 +202,7 @@ viewEditing deviceClass cyoaId old current preview =
                     , height fill
                     , spacing 26
                     ]
-                    [ el [] Element.none
+                    [ el [] Ui.none
                     , case parsed of
                         Ok sections ->
                             View.CYOA.view deviceClass
@@ -221,83 +228,89 @@ viewEditing deviceClass cyoaId old current preview =
 
 viewAdminList : Dict CYOAId CYOA -> List (Element AdminMsg)
 viewAdminList cyoas =
-    [ table [ Theme.spacing ]
-        { columns =
-            [ { header = text "Name"
-              , width = shrink
-              , view =
+    [ Table.view [ Theme.spacing ]
+        (Table.columns
+            [ Table.column
+                { header = Table.cell [] (text "Name")
+                , view =
                     \( cyoaId, cyoa ) ->
                         let
                             raw : String
                             raw =
                                 cyoaToString cyoa
                         in
-                        Theme.button []
-                            { label = text cyoaId
-                            , onPress = Just <| UpdatePrepare cyoaId raw raw False
-                            }
-              }
-            , { header = text "Link"
-              , width = shrink
-              , view =
+                        Table.cell []
+                            (Theme.button []
+                                { label = text cyoaId
+                                , onPress = Just <| UpdatePrepare cyoaId raw raw False
+                                }
+                            )
+                }
+            , Table.column
+                { header = Table.cell [] (text "Link")
+                , view =
                     \( cyoaId, _ ) ->
                         let
                             url : String
                             url =
                                 Url.Builder.absolute [ Url.percentEncode cyoaId ] []
                         in
-                        Theme.newTabLink [ centerY ]
-                            { url = url
-                            , label = text <| "https://mary-sue.lamdera.app" ++ url
-                            }
-              }
-            , { header = text "User"
-              , width = shrink
-              , view = \( _, cyoa ) -> el [ centerY ] <| text cyoa.userId
-              }
-            , { header = text "Actions"
-              , width = shrink
-              , view =
+                        Table.cell []
+                            (Theme.newTabLink [ centerY ]
+                                { url = url
+                                , label = text <| "https://mary-sue.lamdera.app" ++ url
+                                }
+                            )
+                }
+            , Table.column
+                { header = Table.cell [] (text "User")
+                , view = \( _, cyoa ) -> Table.cell [ centerY ] <| text cyoa.userId
+                }
+            , Table.column
+                { header = Table.cell [] (text "Actions")
+                , view =
                     \( cyoaId, cyoa ) ->
-                        Theme.row []
-                            [ Theme.button []
-                                { label = text "Rename"
-                                , onPress = Just <| RenamePrepare cyoaId cyoaId
-                                }
-                            , Theme.button []
-                                { label = text "Transfer"
-                                , onPress = Just <| TransferPrepare cyoaId cyoa.userId
-                                }
-                            ]
-              }
+                        Table.cell []
+                            (Theme.row []
+                                [ Theme.button []
+                                    { label = text "Rename"
+                                    , onPress = Just <| RenamePrepare cyoaId cyoaId
+                                    }
+                                , Theme.button []
+                                    { label = text "Transfer"
+                                    , onPress = Just <| TransferPrepare cyoaId cyoa.userId
+                                    }
+                                ]
+                            )
+                }
             ]
-        , data =
-            cyoas
-                |> Dict.toList
-        }
+        )
+        (Dict.toList cyoas)
     ]
 
 
 viewUserList : List UserId -> List (Element AdminMsg)
 viewUserList users =
-    [ table [ Theme.spacing ]
-        { columns =
-            [ { header = text "Id"
-              , width = shrink
-              , view = \userId -> el [ centerY ] <| text userId
-              }
-            , { header = text "Actions"
-              , width = shrink
-              , view =
+    [ Table.view [ Theme.spacing ]
+        (Table.columns
+            [ Table.column
+                { header = Table.cell [] (text "Id")
+                , view = \userId -> Table.cell [ centerY ] <| text userId
+                }
+            , Table.column
+                { header = Table.cell [] (text "Actions")
+                , view =
                     \userId ->
-                        Theme.button []
-                            { label = text "Reset password"
-                            , onPress = Just <| ResetPassword userId
-                            }
-              }
+                        Table.cell []
+                            (Theme.button []
+                                { label = text "Reset password"
+                                , onPress = Just <| ResetPassword userId
+                                }
+                            )
+                }
             ]
-        , data = users
-        }
+        )
+        users
     , Theme.button []
         { onPress = Just (CreateUserPrepare "")
         , label = text "Create"
@@ -414,7 +427,7 @@ topRow inner =
                 }
 
         _ ->
-            Element.none
+            Ui.none
     , case inner of
         Renaming _ _ ->
             Theme.button []
@@ -423,7 +436,7 @@ topRow inner =
                 }
 
         _ ->
-            Element.none
+            Ui.none
     , Theme.button [ alignRight ]
         { label = text "Users"
         , onPress =

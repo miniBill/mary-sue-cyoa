@@ -437,7 +437,7 @@ topRow inner =
 
         _ ->
             Ui.none
-    , Theme.button [ alignRight ]
+    , Theme.button []
         { label = text "Users"
         , onPress =
             case inner of

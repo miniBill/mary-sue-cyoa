@@ -4,7 +4,7 @@ import Color exposing (rgb)
 import Color.Oklch exposing (Oklch)
 import Theme.Colors
 import Types exposing (Tier)
-import Ui exposing (Attribute, Element, centerX, centerY, el, text)
+import Ui exposing (Attribute, Element, centerX, centerY, el, fill, height, scrollable, text)
 import Ui.Font as Font
 import Ui.Input as Input
 import Ui.Table as Table
@@ -94,9 +94,13 @@ multiline attrs config =
         label =
             Input.label config.id [] config.label
     in
-    column []
+    Ui.column attrs
         [ label.element
-        , Input.multiline (Theme.Colors.background Theme.Colors.palerViolet :: attrs)
+        , Input.multiline
+            [ Theme.Colors.background Theme.Colors.palerViolet
+            , height fill
+            , scrollable
+            ]
             { onChange = config.onChange
             , label = label.id
             , text = config.text

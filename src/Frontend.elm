@@ -563,7 +563,7 @@ viewToggles choices compact =
                 label =
                     Input.label "compact" [] (text "Hide unselected options")
             in
-            Ui.row []
+            Theme.row []
                 [ Input.checkbox
                     [ Theme.spacing
                     , alignRight

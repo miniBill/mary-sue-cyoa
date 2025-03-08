@@ -1,4 +1,4 @@
-module Theme exposing (button, buttonAttr, centralMessage, column, input, multiline, newTabLink, padding, rhythm, row, spacing, tierButtonAttrs, wrappedRow)
+module Theme exposing (button, buttonAttr, cell, centralMessage, column, input, multiline, newTabLink, padding, rhythm, row, spacing, tierButtonAttrs, wrappedRow)
 
 import Color exposing (rgb)
 import Color.Oklch exposing (Oklch)
@@ -7,6 +7,7 @@ import Types exposing (Tier)
 import Ui exposing (Attribute, Element, centerX, centerY, el, text)
 import Ui.Font as Font
 import Ui.Input as Input
+import Ui.Table as Table
 
 
 padding : Attribute msg
@@ -119,6 +120,7 @@ button attrs config =
             padding
                 :: Ui.border 1
                 :: Ui.borderColor (rgb 0 0 0)
+                :: Ui.width Ui.shrink
                 :: attrs
     in
     case config.onPress of
@@ -176,3 +178,8 @@ buttonAttr maybeMsg =
 
         Nothing ->
             Ui.noAttr
+
+
+cell : List (Attribute msg) -> Element msg -> Table.Cell msg
+cell attrs child =
+    Table.cell (Ui.padding 0 :: attrs) child

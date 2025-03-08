@@ -231,7 +231,7 @@ viewAdminList cyoas =
     [ Table.view [ Theme.spacing ]
         (Table.columns
             [ Table.column
-                { header = Table.cell [] (text "Name")
+                { header = Theme.cell [] (text "Name")
                 , view =
                     \( cyoaId, cyoa ) ->
                         let
@@ -239,7 +239,7 @@ viewAdminList cyoas =
                             raw =
                                 cyoaToString cyoa
                         in
-                        Table.cell []
+                        Theme.cell []
                             (Theme.button []
                                 { label = text cyoaId
                                 , onPress = Just <| UpdatePrepare cyoaId raw raw False
@@ -247,7 +247,7 @@ viewAdminList cyoas =
                             )
                 }
             , Table.column
-                { header = Table.cell [] (text "Link")
+                { header = Theme.cell [] (text "Link")
                 , view =
                     \( cyoaId, _ ) ->
                         let
@@ -255,7 +255,7 @@ viewAdminList cyoas =
                             url =
                                 Url.Builder.absolute [ Url.percentEncode cyoaId ] []
                         in
-                        Table.cell []
+                        Theme.cell []
                             (Theme.newTabLink [ centerY ]
                                 { url = url
                                 , label = text <| "https://mary-sue.lamdera.app" ++ url
@@ -263,14 +263,14 @@ viewAdminList cyoas =
                             )
                 }
             , Table.column
-                { header = Table.cell [] (text "User")
-                , view = \( _, cyoa ) -> Table.cell [ centerY ] <| text cyoa.userId
+                { header = Theme.cell [] (text "User")
+                , view = \( _, cyoa ) -> Theme.cell [ centerY ] <| text cyoa.userId
                 }
             , Table.column
-                { header = Table.cell [] (text "Actions")
+                { header = Theme.cell [] (text "Actions")
                 , view =
                     \( cyoaId, cyoa ) ->
-                        Table.cell []
+                        Theme.cell []
                             (Theme.row []
                                 [ Theme.button []
                                     { label = text "Rename"
@@ -294,14 +294,14 @@ viewUserList users =
     [ Table.view [ Theme.spacing ]
         (Table.columns
             [ Table.column
-                { header = Table.cell [] (text "Id")
-                , view = \userId -> Table.cell [ centerY ] <| text userId
+                { header = Theme.cell [] (text "Id")
+                , view = \userId -> Theme.cell [ centerY ] <| text userId
                 }
             , Table.column
-                { header = Table.cell [] (text "Actions")
+                { header = Theme.cell [] (text "Actions")
                 , view =
                     \userId ->
-                        Table.cell []
+                        Theme.cell []
                             (Theme.button []
                                 { label = text "Reset password"
                                 , onPress = Just <| ResetPassword userId

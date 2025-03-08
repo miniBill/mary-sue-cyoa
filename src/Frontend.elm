@@ -19,8 +19,8 @@ import Types.Password as Password exposing (Password)
 import Ui exposing (Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, shrink, text, width)
 import Ui.Font as Font
 import Ui.Input as Input
-import Ui.Lazy
-import Ui.Table
+import Ui.Lazy as Lazy
+import Ui.Table as Table
 import Url exposing (Url)
 import Url.Builder
 import View.Admin
@@ -56,8 +56,15 @@ app =
                         , height fill
                         , Theme.Colors.font Theme.Colors.darkViolet
                         , Theme.Colors.background Theme.Colors.paleViolet
+                        , Font.size 20
+                        , Font.family
+                            [ Font.typeface "Open Sans"
+                            , Font.typeface "Helvetica"
+                            , Font.typeface "Verdana"
+                            , Font.sansSerif
+                            ]
                         ]
-                        (Ui.Lazy.lazy2 view model.deviceClass model.inner)
+                        (Lazy.lazy2 view model.deviceClass model.inner)
                     ]
                 }
         , update = update
@@ -630,24 +637,24 @@ viewScore choices sections =
                         |> Tuple.second
                         |> List.reverse
             in
-            Ui.Table.view
+            Table.view
                 [ Ui.scrollableX
                 , height shrink
                 , Ui.widthMin 126
                 , width fill
                 ]
-                (Ui.Table.columns
-                    (Ui.Table.column
-                        { header = Ui.Table.cell [] Ui.none
-                        , view = \( rowTier, _ ) -> Ui.Table.cell [ Theme.padding ] <| text rowTier
+                (Table.columns
+                    (Table.column
+                        { header = Theme.cell [] Ui.none
+                        , view = \( rowTier, _ ) -> Theme.cell [ Theme.padding ] <| text rowTier
                         }
                         :: List.map
                             (\( colTier, colAll ) ->
-                                Ui.Table.column
-                                    { header = Ui.Table.cell [] (tierLabel colTier)
+                                Table.column
+                                    { header = Theme.cell [] (tierLabel colTier)
                                     , view =
                                         \( _, rowSum ) ->
-                                            Ui.Table.cell
+                                            Theme.cell
                                                 (Font.center :: Theme.tierButtonAttrs True colTier)
                                                 (text <| String.fromInt <| rowSum colAll)
                                     }

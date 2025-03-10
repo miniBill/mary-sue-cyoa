@@ -35,6 +35,7 @@ view deviceClass chooseTier innerModel =
             , bottom = Theme.rhythm
             }
         , height fill
+        , height (Element.minimum 1 fill)
         ]
         (List.map
             (viewSection deviceClass alternatives chooseTier innerModel.choices innerModel.compact)

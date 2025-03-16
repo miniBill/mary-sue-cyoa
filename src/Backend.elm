@@ -81,13 +81,7 @@ updateFromFrontend _ clientId msg model =
                     case inner of
                         TBLogin ->
                             ( model
-                            , Lamdera.sendToFrontend clientId <|
-                                TFAdmin <|
-                                    if userId == "admin" then
-                                        model.cyoas
-
-                                    else
-                                        Dict.filter (\_ cyoa -> cyoa.userId == userId) model.cyoas
+                            , sendCYOAsToFrontend clientId userId model
                             )
 
                         TBListUsers ->
@@ -152,7 +146,7 @@ updateFromFrontend _ clientId msg model =
                                             { model | cyoas = Dict.remove cyoaId model.cyoas }
                                     in
                                     ( newModel
-                                    , Lamdera.sendToFrontend clientId <| TFAdmin newModel.cyoas
+                                    , sendCYOAsToFrontend clientId userId newModel
                                     )
 
                         TBRenameCYOA oldCyoaId newCyoaId ->
@@ -191,6 +185,17 @@ updateFromFrontend _ clientId msg model =
 
                 Nothing ->
                     ( model, Cmd.none )
+
+
+sendCYOAsToFrontend : ClientId -> UserId -> BackendModel -> Cmd BackendMsg
+sendCYOAsToFrontend clientId userId model =
+    Lamdera.sendToFrontend clientId <|
+        TFAdmin <|
+            if userId == "admin" then
+                model.cyoas
+
+            else
+                Dict.filter (\_ cyoa -> cyoa.userId == userId) model.cyoas
 
 
 checkingUserId : UserId -> CYOAId -> BackendModel -> (CYOA -> ( BackendModel, Cmd msg )) -> ( BackendModel, Cmd msg )

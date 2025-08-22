@@ -1,0 +1,1 @@
+- Not possible to select the textual description of options if in simple mode

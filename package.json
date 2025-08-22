@@ -1,7 +1,10 @@
 {
-  "devDependencies": {
-    "elm-review": "^2.13.4",
-    "elm-test-rs": "^3.0.1-0"
-  },
-  "license": "BSD-3-Clause"
+    "devDependencies": {
+        "elm-review": "^2.13.4",
+        "elm-test-rs": "^3.0.1-0"
+    },
+    "scripts": {
+        "review:watch": "elm-review --compiler $(which lamdera) --watch --fix --allow-remove-files"
+    },
+    "license": "BSD-3-Clause"
 }

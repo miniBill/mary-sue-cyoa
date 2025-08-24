@@ -1,3 +1,5 @@
 - Not possible to select the textual description of options if in simple mode
 - "Clone this notebook" button
 - "Export to glowfic HTML" button
+- Collapsible sections
+- Preamble before sections

@@ -5,7 +5,9 @@ import Dict exposing (Dict)
 import Element exposing (DeviceClass, Element, alignRight, alignTop, centerY, el, fill, height, inFront, paragraph, rgb, scrollbarX, shrink, spacing, table, text, width)
 import Element.Font as Font
 import Element.Input as Input
+import Html
 import Parser
+import Parser.Extra
 import Set
 import Theme
 import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Section, UserId)
@@ -160,8 +162,9 @@ viewEditing deviceClass cyoaId old current preview =
         errorView : List Parser.DeadEnd -> Element msg
         errorView e =
             el [ Font.color <| rgb 1 0 0 ] <|
-                text <|
-                    CYOAParser.errorToString e
+                Element.html <|
+                    Html.pre []
+                        (Parser.Extra.errorToHtml Parser.Extra.parser current e)
     in
     [ Theme.row
         [ width fill

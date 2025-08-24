@@ -1,7 +1,7 @@
-module CYOAParser exposing (errorToString, mainParser, requirementParser)
+module CYOAParser exposing (mainParser, requirementParser)
 
 import EnglishNumbers
-import Parser exposing ((|.), (|=), Parser, Problem(..))
+import Parser exposing ((|.), (|=), Parser)
 import Types exposing (Power, Requirement(..), Section)
 
 
@@ -179,61 +179,3 @@ many parser =
         , spaces = Parser.spaces
         , item = parser
         }
-
-
-errorToString : List Parser.DeadEnd -> String
-errorToString deadEnds =
-    String.join "\n" <|
-        "Error:"
-            :: List.map deadEndToString deadEnds
-
-
-deadEndToString : Parser.DeadEnd -> String
-deadEndToString deadEnd =
-    "At " ++ String.fromInt deadEnd.row ++ ":" ++ String.fromInt deadEnd.col ++ ": " ++ problemToString deadEnd.problem
-
-
-problemToString : Parser.Problem -> String
-problemToString problem =
-    case problem of
-        ExpectingInt ->
-            "Expecting int"
-
-        ExpectingHex ->
-            "Expecting hex"
-
-        ExpectingOctal ->
-            "Expecting octal"
-
-        ExpectingBinary ->
-            "Expecting binary"
-
-        ExpectingFloat ->
-            "Expecting float"
-
-        ExpectingNumber ->
-            "Expecting number"
-
-        ExpectingVariable ->
-            "Expecting variable"
-
-        ExpectingSymbol s ->
-            "Expecting symbol " ++ s
-
-        ExpectingKeyword k ->
-            "Expecting keyword " ++ k
-
-        Expecting e ->
-            "Expecting " ++ e
-
-        ExpectingEnd ->
-            "Expecting end"
-
-        UnexpectedChar ->
-            "Unexpected char"
-
-        Problem p ->
-            "Problem: " ++ p
-
-        BadRepeat ->
-            "Bad repetition"

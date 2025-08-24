@@ -16,6 +16,7 @@
             "jfmengels/elm-review-documentation": "2.0.4",
             "jfmengels/elm-review-simplify": "2.1.9",
             "jfmengels/elm-review-unused": "1.2.4",
+            "miniBill/elm-review-no-broken-elm-parser-functions": "1.0.0",
             "stil4m/elm-syntax": "7.3.9"
         },
         "indirect": {

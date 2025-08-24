@@ -12,6 +12,7 @@ when inside the directory containing this file.
 -}
 
 import Docs.ReviewAtDocs
+import NoBrokenParserFunctions
 import NoConfusingPrefixOperator
 import NoDebug.Log
 import NoDebug.TodoOrToString
@@ -55,5 +56,6 @@ config =
     , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
     , Simplify.rule Simplify.defaults
+    , NoBrokenParserFunctions.rule
     ]
         |> List.map (Rule.ignoreErrorsForDirectories [ "src/Evergreen" ])

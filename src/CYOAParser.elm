@@ -2,6 +2,7 @@ module CYOAParser exposing (mainParser, requirementParser)
 
 import EnglishNumbers
 import Parser exposing ((|.), (|=), Parser)
+import Parser.Workaround
 import Types exposing (Power, Requirement(..), Section)
 
 
@@ -26,7 +27,7 @@ parseSection =
             , powers = powers
             }
         )
-        |= getChompedTrimmed (Parser.chompUntil "\n")
+        |= getChompedTrimmed (Parser.Workaround.chompUntilBefore "\n")
         |. Parser.spaces
         |= many nonNameParser
         |. Parser.spaces
@@ -35,7 +36,7 @@ parseSection =
 
 nonNameParser : Parser String
 nonNameParser =
-    Parser.chompUntil "\n"
+    Parser.Workaround.chompUntilBefore "\n"
         |> getChompedTrimmed
         |> Parser.backtrackable
         |> Parser.andThen
@@ -70,7 +71,7 @@ powerParser =
         )
         |. Parser.token "Name:"
         |. Parser.spaces
-        |= getChompedTrimmed (Parser.chompUntil " - ")
+        |= getChompedTrimmed (Parser.Workaround.chompUntilBefore " - ")
         |. Parser.token " - "
         |. Parser.spaces
         |= Parser.oneOf
@@ -91,7 +92,7 @@ powerParser =
             [ Parser.succeed Just
                 |. Parser.token "Id:"
                 |. Parser.spaces
-                |= getChompedTrimmed (Parser.chompUntil "\n")
+                |= getChompedTrimmed (Parser.Workaround.chompUntilBefore "\n")
             , Parser.succeed Nothing
             ]
         |. Parser.spaces
@@ -99,7 +100,7 @@ powerParser =
             [ Parser.succeed Just
                 |. Parser.symbol "(Replaces"
                 |. Parser.spaces
-                |= getChompedTrimmed (Parser.chompUntil ")")
+                |= getChompedTrimmed (Parser.Workaround.chompUntilBefore ")")
                 |. Parser.token ")"
             , Parser.succeed Nothing
             ]
@@ -130,12 +131,12 @@ powerParser =
                 )
                 |. Parser.token "(Requires"
                 |. Parser.spaces
-                |= getChompedTrimmed (Parser.chompUntil ")")
+                |= getChompedTrimmed (Parser.Workaround.chompUntilBefore ")")
                 |. Parser.token ")"
             , Parser.succeed []
             ]
         |. Parser.spaces
-        |= getChompedTrimmed (Parser.chompUntil "\n\n")
+        |= getChompedTrimmed (Parser.Workaround.chompUntilBefore "\n\n")
 
 
 requirementParser : Parser Requirement
@@ -147,7 +148,7 @@ requirementParser =
         |. Parser.spaces
         |. Parser.symbol "of:"
         |. Parser.spaces
-        |= getChompedTrimmed (Parser.chompUntilEndOr ")")
+        |= getChompedTrimmed (Parser.Workaround.chompUntilEndOrBefore ")")
 
 
 numberParser : Parser Int

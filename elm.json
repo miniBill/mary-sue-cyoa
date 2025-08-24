@@ -22,7 +22,8 @@
             "lamdera/core": "1.0.0",
             "lydell/elm-app-url": "1.0.4",
             "mdgriffith/elm-ui": "1.1.8",
-            "miniBill/elm-oklch": "1.0.0"
+            "miniBill/elm-oklch": "1.0.0",
+            "pithub/elm-parser-bug-workaround": "1.0.0"
         },
         "indirect": {
             "elm/file": "1.0.5",
@@ -30,6 +31,7 @@
             "elm/regex": "1.0.0",
             "elm/time": "1.0.0",
             "elm/virtual-dom": "1.0.3",
+            "pithub/elm-parser-extra": "1.0.0",
             "rtfeldman/elm-hex": "1.0.0"
         }
     },

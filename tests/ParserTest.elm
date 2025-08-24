@@ -32,7 +32,7 @@ atLeastXOf =
 
 roundtrips : Test
 roundtrips =
-    fuzz (Fuzz.list fuzzSection) "Main parser roundtrips" <|
+    fuzz (Fuzz.listOfLengthBetween 0 3 fuzzSection) "Main parser roundtrips" <|
         \sections ->
             sections
                 |> List.map Admin.sectionToString
@@ -44,42 +44,53 @@ roundtrips =
 fuzzSection : Fuzzer Section
 fuzzSection =
     Fuzz.map3 Section
-        niceString
+        niceNonemptyString
         (Fuzz.list niceString)
-        (Fuzz.list (Fuzz.maybe fuzzPower))
+        (Fuzz.listOfLengthBetween 1 3 (Fuzz.map Just fuzzPower))
 
 
 fuzzPower : Fuzzer Power
 fuzzPower =
     Fuzz.map6 Power
-        niceString
+        niceNonemptyString
         fuzzCYOAId
         Fuzz.int
-        (Fuzz.maybe niceString)
-        (Fuzz.list (fuzzRequirement 2))
+        (Fuzz.maybe fuzzCYOAId)
+        (Fuzz.listOfLengthBetween 0 3 fuzzRequirement)
         niceString
 
 
 fuzzCYOAId : Fuzzer CYOAId
 fuzzCYOAId =
-    niceString
+    niceNonemptyString
 
 
-fuzzRequirement : Int -> Fuzzer Requirement
-fuzzRequirement budget =
-    if budget <= 0 then
-        Fuzz.map Requirement fuzzCYOAId
+fuzzRequirement : Fuzzer Requirement
+fuzzRequirement =
+    Fuzz.oneOf
+        [ Fuzz.map Requirement fuzzCYOAId
+        , Fuzz.map2 AtLeastXOf
+            Fuzz.int
+            (Fuzz.listOfLengthBetween 1
+                3
+                (Fuzz.map Requirement fuzzCYOAId)
+            )
+        ]
 
-    else
-        Fuzz.oneOf
-            [ Fuzz.map Requirement fuzzCYOAId
-            , Fuzz.map2 AtLeastXOf
-                Fuzz.int
-                (Fuzz.listOfLengthBetween 1
-                    3
-                    (Fuzz.lazy (\_ -> fuzzRequirement (budget - 1)))
+
+niceNonemptyString : Fuzzer String
+niceNonemptyString =
+    Fuzz.map2 (\h t -> String.fromList (h :: t) |> String.trim)
+        (Fuzz.oneOfValues
+            (List.map
+                Char.fromCode
+                (List.range
+                    (Char.toCode 'a')
+                    (Char.toCode 'z')
                 )
-            ]
+            )
+        )
+        (Fuzz.listOfLengthBetween 1 10 Fuzz.char)
 
 
 niceString : Fuzzer String

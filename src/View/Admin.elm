@@ -1,4 +1,4 @@
-module View.Admin exposing (view)
+module View.Admin exposing (sectionToString, view)
 
 import CYOAParser
 import Dict exposing (Dict)

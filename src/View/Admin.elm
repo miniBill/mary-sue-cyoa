@@ -2,7 +2,7 @@ module View.Admin exposing (view)
 
 import CYOAParser
 import Dict exposing (Dict)
-import Element exposing (DeviceClass, Element, alignRight, alignTop, centerY, el, fill, height, inFront, paragraph, rgb, shrink, spacing, table, text, width)
+import Element exposing (DeviceClass, Element, alignRight, alignTop, centerY, el, fill, height, inFront, paragraph, rgb, scrollbarX, shrink, spacing, table, text, width)
 import Element.Font as Font
 import Element.Input as Input
 import Parser
@@ -194,6 +194,7 @@ viewEditing deviceClass cyoaId old current preview =
                     , width fill
                     , height fill
                     , spacing 26
+                    , scrollbarX
                     ]
                     [ el [] Element.none
                     , case parsed of

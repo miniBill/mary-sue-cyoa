@@ -1,12 +1,13 @@
-module Types exposing (AdminModel, AdminMsg(..), BackendModel, BackendMsg(..), CYOA, CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Power, Requirement(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..), User, UserId, getAlternatives, groupPowers, powerTier, requirementToString, tierToString)
+module Types exposing (AdminModel, AdminMsg(..), BackendModel, BackendMsg(..), Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..), User, getAlternatives, groupPowers, powerTier, tierToString)
 
 import Browser
 import Browser.Navigation exposing (Key)
-import Dict exposing (Dict)
+import CYOA exposing (CYOA, PowerData, PowerOrBreak(..), Section, SectionElement(..))
 import Element exposing (DeviceClass)
-import EnglishNumbers
+import Id exposing (Id)
 import Lamdera exposing (ClientId)
-import Set exposing (Set)
+import SeqDict exposing (SeqDict)
+import SeqSet exposing (SeqSet)
 import Types.Password exposing (Password)
 import Url exposing (Url)
 
@@ -20,15 +21,15 @@ type alias FrontendModel =
 
 type InnerModel
     = Homepage
-    | Loading CYOAId Choices
-    | NotFound CYOAId
+    | Loading (Id CYOA) Choices
+    | NotFound (Id CYOA)
     | Login
         { password : Password
         , loggingIn : Bool
         }
     | Admin AdminModel
     | Loaded
-        { cyoaId : CYOAId
+        { cyoaId : Id CYOA
         , choices : Choices
         , compact : Bool
         , data : CYOA
@@ -37,27 +38,27 @@ type InnerModel
 
 type alias AdminModel =
     { password : Password
-    , cyoas : Dict CYOAId CYOA
+    , cyoas : SeqDict (Id CYOA) ( Id User, CYOA )
     , inner : InnerAdminModel
     }
 
 
 type InnerAdminModel
     = Listing
-    | ListingUsers (List UserId)
-    | PasswordResetDone UserId String
-    | Creating CYOAId
-    | CreatingUser UserId
-    | CreateUserDone UserId String
-    | Editing CYOAId String String Bool
-    | Deleting CYOAId
-    | Renaming CYOAId CYOAId
-    | Transferring CYOAId UserId
+    | ListingUsers (List (Id User))
+    | PasswordResetDone (Id User) String
+    | Creating (Id CYOA)
+    | CreatingUser (Id User)
+    | CreateUserDone (Id User) String
+    | Editing (Id CYOA) String String Bool
+    | Deleting (Id CYOA)
+    | Renaming (Id CYOA) (Id CYOA)
+    | Transferring (Id CYOA) (Id User)
 
 
 type Choices
-    = Tiered (Dict String Tier)
-    | Simple (Set String)
+    = Tiered (SeqDict (Id PowerOrBreak) Tier)
+    | Simple (SeqSet (Id PowerOrBreak))
 
 
 type Tier
@@ -91,36 +92,8 @@ tierToString tier =
             "F"
 
 
-type alias CYOA =
-    { sections : List Section
-    , userId : UserId
-    }
-
-
-type alias Section =
-    { name : String
-    , description : List String
-    , powers : List (Maybe Power)
-    }
-
-
-type alias Power =
-    { label : String
-    , id : CYOAId
-    , cost : Int
-    , replaces : Maybe CYOAId
-    , requires : List Requirement
-    , description : String
-    }
-
-
-type Requirement
-    = Requirement CYOAId
-    | AtLeastXOf Int (List Requirement)
-
-
 type FrontendMsg
-    = ChooseTier String (Maybe Tier)
+    = ChooseTier (Id PowerOrBreak) (Maybe Tier)
     | UrlChange Url
     | UrlRequest Browser.UrlRequest
     | ToggleKind Kind
@@ -132,19 +105,19 @@ type FrontendMsg
 
 
 type AdminMsg
-    = CreatePrepare CYOAId
-    | CreateDo CYOAId
-    | CreateUserPrepare UserId
-    | CreateUserDo UserId
-    | UpdatePrepare CYOAId String String Bool
-    | UpdateDo CYOAId (List Section)
-    | RenamePrepare CYOAId CYOAId
-    | RenameDo CYOAId CYOAId
-    | TransferPrepare CYOAId UserId
-    | TransferDo CYOAId UserId
-    | DeletePrepare CYOAId
-    | DeleteDo CYOAId
-    | ResetPassword UserId
+    = CreatePrepare (Id CYOA)
+    | CreateDo (Id CYOA)
+    | CreateUserPrepare (Id User)
+    | CreateUserDo (Id User)
+    | UpdatePrepare (Id CYOA) String String Bool
+    | UpdateDo (Id CYOA) (List Section)
+    | RenamePrepare (Id CYOA) (Id CYOA)
+    | RenameDo (Id CYOA) (Id CYOA)
+    | TransferPrepare (Id CYOA) (Id User)
+    | TransferDo (Id CYOA) (Id User)
+    | DeletePrepare (Id CYOA)
+    | DeleteDo (Id CYOA)
+    | ResetPassword (Id User)
     | List
     | Users
 
@@ -154,18 +127,10 @@ type Kind
     | SimpleKind
 
 
-type alias CYOAId =
-    String
-
-
-type alias UserId =
-    String
-
-
 type alias BackendModel =
-    { cyoas : Dict CYOAId CYOA
-    , connections : Dict ClientId CYOAId
-    , users : Dict UserId User
+    { cyoas : SeqDict (Id CYOA) ( Id User, CYOA )
+    , connections : SeqDict ClientId (Id CYOA)
+    , users : SeqDict (Id User) User
     }
 
 
@@ -176,82 +141,54 @@ type alias User =
 
 type BackendMsg
     = BackendDisconnected ClientId
-    | DoPasswordReset ClientId UserId String
-    | DoCreateUser ClientId UserId String
+    | DoPasswordReset ClientId (Id User) String
+    | DoCreateUser ClientId (Id User) String
 
 
 type ToBackend
-    = TBGetCYOA CYOAId
+    = TBGetCYOA (Id CYOA)
     | TBAuthenticated Password TBAuthenticated
 
 
 type TBAuthenticated
     = TBLogin
-    | TBCreateCYOA CYOAId
-    | TBRenameCYOA CYOAId CYOAId
-    | TBTransferCYOA CYOAId UserId
-    | TBUpdateCYOA CYOAId (List Section)
-    | TBDeleteCYOA CYOAId
+    | TBCreateCYOA (Id CYOA)
+    | TBRenameCYOA (Id CYOA) (Id CYOA)
+    | TBTransferCYOA (Id CYOA) (Id User)
+    | TBUpdateCYOA (Id CYOA) (List Section)
+    | TBDeleteCYOA (Id CYOA)
     | TBListUsers
-    | TBCreateUser UserId
-    | TBResetPassword UserId
+    | TBCreateUser (Id User)
+    | TBResetPassword (Id User)
 
 
 type ToFrontend
-    = TFGotCYOA CYOAId CYOA
-    | TFRenamedCYOA CYOAId CYOAId
-    | TFTransferredCYOA CYOAId UserId
-    | TFDeletedCYOA CYOAId
-    | TFCYOAMissing CYOAId
-    | TFAdmin (Dict CYOAId CYOA)
-    | TFUsers (List UserId)
-    | TFResetPassword UserId String
-    | TFCreatedUser UserId String
+    = TFGotCYOA (Id CYOA) (Id User) CYOA
+    | TFRenamedCYOA (Id CYOA) (Id CYOA)
+    | TFTransferredCYOA (Id CYOA) (Id User)
+    | TFDeletedCYOA (Id CYOA)
+    | TFCYOAMissing (Id CYOA)
+    | TFAdmin (SeqDict (Id CYOA) ( Id User, CYOA ))
+    | TFUsers (List (Id User))
+    | TFResetPassword (Id User) String
+    | TFCreatedUser (Id User) String
 
 
-powerTier : Choices -> String -> Maybe Tier
+powerTier : Choices -> Id PowerOrBreak -> Maybe Tier
 powerTier choices name =
     case choices of
         Tiered tiered ->
-            Dict.get name tiered
+            SeqDict.get name tiered
 
         Simple simple ->
-            if Set.member name simple then
+            if SeqSet.member name simple then
                 Just S
 
             else
                 Nothing
 
 
-requirementToString : Requirement -> String
-requirementToString requirement =
-    case requirement of
-        Requirement name ->
-            name
-
-        AtLeastXOf required alternatives ->
-            "at least "
-                ++ EnglishNumbers.toString required
-                ++ " of: "
-                ++ String.join ", "
-                    (List.map
-                        (\child ->
-                            let
-                                s : String
-                                s =
-                                    requirementToString child
-                            in
-                            if String.contains "," s then
-                                "(" ++ s ++ ")"
-
-                            else
-                                s
-                        )
-                        alternatives
-                    )
-
-
-groupPowers : List (Maybe Power) -> List ( Power, List Power )
+groupPowers : List PowerOrBreak -> List ( PowerData, List PowerData )
 groupPowers powers =
     let
         ( finalLastGroup, finalAcc ) =
@@ -260,16 +197,21 @@ groupPowers powers =
                     (\maybePower ( lastGroup, acc ) ->
                         case lastGroup of
                             Nothing ->
-                                ( Maybe.map (\power -> ( power, [] )) maybePower, acc )
+                                case maybePower of
+                                    Break ->
+                                        ( Nothing, acc )
+
+                                    Power power ->
+                                        ( Just ( power, [] ), acc )
 
                             Just ( lastPower, lastGroupAcc ) ->
                                 case maybePower of
-                                    Nothing ->
+                                    Break ->
                                         ( Nothing
                                         , ( lastPower, List.reverse lastGroupAcc ) :: acc
                                         )
 
-                                    Just power ->
+                                    Power power ->
                                         if power.replaces == Just lastPower.id || (power.replaces /= Nothing && power.replaces == lastPower.replaces) then
                                             ( Just ( lastPower, { power | requires = lastPower.requires } :: lastGroupAcc ), acc )
 
@@ -288,28 +230,46 @@ groupPowers powers =
             List.reverse (( lp, lg ) :: finalAcc)
 
 
-getAlternatives : { a | sections : List Section } -> Dict CYOAId (List CYOAId)
-getAlternatives { sections } =
+getAlternatives : List Section -> SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak))
+getAlternatives sections =
     let
-        upsert : CYOAId -> CYOAId -> Dict CYOAId (List CYOAId) -> Dict CYOAId (List CYOAId)
+        upsert : Id PowerOrBreak -> Id PowerOrBreak -> SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak)) -> SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak))
         upsert key value acc =
-            Dict.insert key (value :: Maybe.withDefault [] (Dict.get key acc)) acc
+            let
+                newValue : List (Id PowerOrBreak)
+                newValue =
+                    case SeqDict.get key acc of
+                        Nothing ->
+                            [ value ]
+
+                        Just existing ->
+                            value :: existing
+            in
+            SeqDict.insert key newValue acc
+
+        foldSectionElement : SectionElement -> SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak)) -> SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak))
+        foldSectionElement element acc =
+            case element of
+                PowerElement p ->
+                    foldSubsectionElement p acc
+
+                Subsection subsection ->
+                    List.foldl foldSubsectionElement acc subsection.powers
+
+        foldSubsectionElement : PowerOrBreak -> SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak)) -> SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak))
+        foldSubsectionElement element acc =
+            case element of
+                Break ->
+                    acc
+
+                Power p ->
+                    upsert (Maybe.withDefault p.id p.replaces) p.id acc
     in
     sections
         |> List.foldl
             (\section acc ->
-                List.foldl
-                    (\power ->
-                        case power of
-                            Nothing ->
-                                identity
-
-                            Just p ->
-                                upsert (Maybe.withDefault p.id p.replaces) p.id
-                    )
-                    acc
-                    section.powers
+                List.foldl foldSectionElement acc section.elements
             )
-            Dict.empty
-        |> Dict.map (\_ -> List.reverse)
-        |> Dict.filter (\_ v -> List.length v > 1)
+            SeqDict.empty
+        |> SeqDict.map (\_ -> List.reverse)
+        |> SeqDict.filter (\_ v -> List.length v > 1)

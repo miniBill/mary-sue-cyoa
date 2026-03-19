@@ -1,23 +1,25 @@
-module View.Admin exposing (sectionToString, view)
+module View.Admin exposing (view)
 
+import CYOA exposing (CYOA, Section)
 import CYOAParser
-import Dict exposing (Dict)
 import Element exposing (DeviceClass, Element, alignRight, alignTop, centerY, el, fill, height, inFront, paragraph, rgb, scrollbarX, shrink, spacing, table, text, width)
 import Element.Font as Font
 import Element.Input as Input
 import Html
+import Id exposing (Id)
 import Parser
 import Parser.Extra
-import Set
+import SeqDict exposing (SeqDict)
+import SeqSet
 import Theme
-import Types exposing (AdminMsg(..), CYOA, CYOAId, Choices(..), InnerAdminModel(..), Power, Section, UserId)
+import Types exposing (AdminMsg(..), Choices(..), InnerAdminModel(..), User)
 import Types.Password exposing (Password)
 import Url
 import Url.Builder
 import View.CYOA
 
 
-view : DeviceClass -> { password : Password, cyoas : Dict CYOAId CYOA, inner : InnerAdminModel } -> Element AdminMsg
+view : DeviceClass -> { password : Password, cyoas : SeqDict (Id CYOA) ( Id User, CYOA ), inner : InnerAdminModel } -> Element AdminMsg
 view deviceClass admin =
     (case admin.inner of
         Listing ->
@@ -46,14 +48,14 @@ view deviceClass admin =
 
         PasswordResetDone userId password ->
             [ paragraph []
-                [ text <| "Password reset successfull: user " ++ userId ++ " now has password "
+                [ text <| "Password reset successfull: user " ++ Id.toString userId ++ " now has password "
                 , el [ Font.family [ Font.monospace ] ] <| text password
                 ]
             ]
 
         CreateUserDone userId password ->
             [ paragraph []
-                [ text <| "User successfully created: user " ++ userId ++ " with password "
+                [ text <| "User successfully created: user " ++ Id.toString userId ++ " with password "
                 , el [ Font.family [ Font.monospace ] ] <| text password
                 ]
             ]
@@ -66,13 +68,13 @@ view deviceClass admin =
             ]
 
 
-viewCreating : CYOAId -> List (Element AdminMsg)
+viewCreating : Id CYOA -> List (Element AdminMsg)
 viewCreating cyoaId =
     [ Theme.input []
         { label = Input.labelAbove [] <| text "Id"
-        , text = cyoaId
+        , text = Id.toString cyoaId
         , placeholder = Just <| Input.placeholder [] <| text "bestest-notebook-ever"
-        , onChange = CreatePrepare
+        , onChange = Id.fromString >> CreatePrepare
         }
     , Theme.button []
         { label = text "Create"
@@ -81,13 +83,13 @@ viewCreating cyoaId =
     ]
 
 
-viewCreatingUser : UserId -> List (Element AdminMsg)
+viewCreatingUser : Id User -> List (Element AdminMsg)
 viewCreatingUser userId =
     [ Theme.input []
         { label = Input.labelAbove [] <| text "Username"
-        , text = userId
+        , text = Id.toString userId
         , placeholder = Just <| Input.placeholder [] <| text "username"
-        , onChange = CreateUserPrepare
+        , onChange = Id.fromString >> CreateUserPrepare
         }
     , Theme.button []
         { label = text "Create"
@@ -96,13 +98,13 @@ viewCreatingUser userId =
     ]
 
 
-viewRenaming : CYOAId -> CYOAId -> List (Element AdminMsg)
+viewRenaming : Id CYOA -> Id CYOA -> List (Element AdminMsg)
 viewRenaming from to =
     [ Theme.input []
-        { label = Input.labelAbove [] <| paragraph [] [ text <| "You are renaming ", el [ Font.family [ Font.monospace ] ] <| text from, text " to" ]
-        , text = to
+        { label = Input.labelAbove [] <| paragraph [] [ text <| "You are renaming ", el [ Font.family [ Font.monospace ] ] <| text (Id.toString from), text " to" ]
+        , text = Id.toString to
         , placeholder = Just <| Input.placeholder [] <| text "bestest-notebook-ever"
-        , onChange = RenamePrepare from
+        , onChange = Id.fromString >> RenamePrepare from
         }
     , Theme.button []
         { label = text "Rename"
@@ -111,13 +113,13 @@ viewRenaming from to =
     ]
 
 
-viewTransferring : CYOAId -> UserId -> List (Element AdminMsg)
+viewTransferring : Id CYOA -> Id User -> List (Element AdminMsg)
 viewTransferring cyoaId userId =
     [ Theme.input []
-        { label = Input.labelAbove [] <| paragraph [] [ text <| "You are transferring ", el [ Font.family [ Font.monospace ] ] <| text cyoaId, text " to" ]
-        , text = userId
+        { label = Input.labelAbove [] <| paragraph [] [ text <| "You are transferring ", el [ Font.family [ Font.monospace ] ] <| text (Id.toString cyoaId), text " to" ]
+        , text = Id.toString userId
         , placeholder = Just <| Input.placeholder [] <| text "admin"
-        , onChange = TransferPrepare cyoaId
+        , onChange = Id.fromString >> TransferPrepare cyoaId
         }
     , Theme.button []
         { label = text "Transfer"
@@ -126,7 +128,7 @@ viewTransferring cyoaId userId =
     ]
 
 
-viewEditing : DeviceClass -> CYOAId -> String -> String -> Bool -> List (Element AdminMsg)
+viewEditing : DeviceClass -> Id CYOA -> String -> String -> Bool -> List (Element AdminMsg)
 viewEditing deviceClass cyoaId old current preview =
     let
         inputBox : Element AdminMsg
@@ -186,7 +188,7 @@ viewEditing deviceClass cyoaId old current preview =
                     }
                 ]
         ]
-        [ el [ Font.bold ] <| text <| "Editing " ++ cyoaId
+        [ el [ Font.bold ] <| text <| "Editing " ++ Id.toString cyoaId
         ]
     , if preview then
         let
@@ -204,8 +206,8 @@ viewEditing deviceClass cyoaId old current preview =
                         Ok sections ->
                             View.CYOA.view deviceClass
                                 Nothing
-                                { choices = Simple Set.empty
-                                , data = { sections = sections }
+                                { choices = Simple SeqSet.empty
+                                , data = sections
                                 , compact = False
                                 }
 
@@ -223,21 +225,21 @@ viewEditing deviceClass cyoaId old current preview =
     ]
 
 
-viewAdminList : Dict CYOAId CYOA -> List (Element AdminMsg)
+viewAdminList : SeqDict (Id CYOA) ( Id User, CYOA ) -> List (Element AdminMsg)
 viewAdminList cyoas =
     [ table [ Theme.spacing ]
         { columns =
             [ { header = text "Name"
               , width = shrink
               , view =
-                    \( cyoaId, cyoa ) ->
+                    \( cyoaId, ( _, cyoa ) ) ->
                         let
                             raw : String
                             raw =
-                                cyoaToString cyoa
+                                CYOA.toString cyoa
                         in
                         Theme.button []
-                            { label = text cyoaId
+                            { label = text (Id.toString cyoaId)
                             , onPress = Just <| UpdatePrepare cyoaId raw raw False
                             }
               }
@@ -248,7 +250,7 @@ viewAdminList cyoas =
                         let
                             url : String
                             url =
-                                Url.Builder.absolute [ Url.percentEncode cyoaId ] []
+                                Url.Builder.absolute [ Url.percentEncode (Id.toString cyoaId) ] []
                         in
                         Theme.newTabLink [ centerY ]
                             { url = url
@@ -257,12 +259,12 @@ viewAdminList cyoas =
               }
             , { header = text "User"
               , width = shrink
-              , view = \( _, cyoa ) -> el [ centerY ] <| text cyoa.userId
+              , view = \( _, ( userId, _ ) ) -> el [ centerY ] <| text (Id.toString userId)
               }
             , { header = text "Actions"
               , width = shrink
               , view =
-                    \( cyoaId, cyoa ) ->
+                    \( cyoaId, ( userId, _ ) ) ->
                         Theme.row []
                             [ Theme.button []
                                 { label = text "Rename"
@@ -270,25 +272,23 @@ viewAdminList cyoas =
                                 }
                             , Theme.button []
                                 { label = text "Transfer"
-                                , onPress = Just <| TransferPrepare cyoaId cyoa.userId
+                                , onPress = Just <| TransferPrepare cyoaId userId
                                 }
                             ]
               }
             ]
-        , data =
-            cyoas
-                |> Dict.toList
+        , data = SeqDict.toList cyoas
         }
     ]
 
 
-viewUserList : List UserId -> List (Element AdminMsg)
+viewUserList : List (Id User) -> List (Element AdminMsg)
 viewUserList users =
     [ table [ Theme.spacing ]
         { columns =
             [ { header = text "Id"
               , width = shrink
-              , view = \userId -> el [ centerY ] <| text userId
+              , view = \userId -> el [ centerY ] <| text (Id.toString userId)
               }
             , { header = text "Actions"
               , width = shrink
@@ -303,89 +303,10 @@ viewUserList users =
         , data = users
         }
     , Theme.button []
-        { onPress = Just (CreateUserPrepare "")
+        { onPress = Just (CreateUserPrepare (Id.fromString ""))
         , label = text "Create"
         }
     ]
-
-
-cyoaToString : CYOA -> String
-cyoaToString { sections } =
-    sections
-        |> List.map sectionToString
-        |> String.join "\n"
-
-
-sectionToString : Section -> String
-sectionToString section =
-    let
-        blocks : List String
-        blocks =
-            section.name :: section.description ++ List.map viewPowerOrBreak section.powers
-    in
-    String.join "\n\n" blocks ++ "\n"
-
-
-viewPowerOrBreak : Maybe Power -> String
-viewPowerOrBreak maybePower =
-    case maybePower of
-        Just power ->
-            viewPower power
-
-        Nothing ->
-            "<br>"
-
-
-viewPower : Power -> String
-viewPower power =
-    let
-        costString : String
-        costString =
-            if power.cost < 0 then
-                "Grants: +" ++ String.fromInt -power.cost
-
-            else
-                "Cost: " ++ String.fromInt power.cost
-
-        idLine : String
-        idLine =
-            if power.label == power.id then
-                ""
-
-            else
-                "Id: "
-                    ++ power.id
-                    ++ "\n"
-
-        replacesLine : String
-        replacesLine =
-            case power.replaces of
-                Nothing ->
-                    ""
-
-                Just replaces ->
-                    "(Replaces " ++ replaces ++ ")\n"
-
-        requiresLine : String
-        requiresLine =
-            if List.isEmpty power.requires then
-                ""
-
-            else
-                "(Requires "
-                    ++ String.join " and "
-                        (List.map Types.requirementToString power.requires)
-                    ++ ")\n"
-    in
-    "Name: "
-        ++ power.label
-        ++ " - "
-        ++ costString
-        ++ " ☐\n"
-        ++ idLine
-        ++ replacesLine
-        ++ requiresLine
-        ++ power.description
 
 
 topRow : InnerAdminModel -> Element AdminMsg
@@ -408,7 +329,7 @@ topRow inner =
                     Nothing
 
                 _ ->
-                    Just <| CreatePrepare ""
+                    Just <| CreatePrepare (Id.fromString "")
         }
     , case inner of
         Editing _ _ _ _ ->

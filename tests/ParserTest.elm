@@ -1,12 +1,12 @@
 module ParserTest exposing (atLeastXOf, roundtrips)
 
+import CYOA exposing (PowerData, PowerOrBreak(..), Requirement(..), Section, SectionElement(..))
 import CYOAParser
 import Expect
 import Fuzz exposing (Fuzzer)
+import Id exposing (Id)
 import Parser
 import Test exposing (Test, fuzz, test)
-import Types exposing (CYOAId, Power, Requirement(..), Section)
-import View.Admin as Admin
 
 
 atLeastXOf : Test
@@ -17,14 +17,14 @@ atLeastXOf =
                 |> Expect.equal
                     (Ok
                         (AtLeastXOf 3
-                            [ Requirement "A Thousand Ships"
-                            , Requirement "Angelic Tones"
-                            , Requirement "Emerald Orbs"
-                            , Requirement "Perfect Hair"
-                            , Requirement "Size Difference"
-                            , Requirement "Dressing Room"
-                            , Requirement "Like Roses"
-                            , Requirement "Well Endowed"
+                            [ Id.fromString "A Thousand Ships"
+                            , Id.fromString "Angelic Tones"
+                            , Id.fromString "Emerald Orbs"
+                            , Id.fromString "Perfect Hair"
+                            , Id.fromString "Size Difference"
+                            , Id.fromString "Dressing Room"
+                            , Id.fromString "Like Roses"
+                            , Id.fromString "Well Endowed"
                             ]
                         )
                     )
@@ -35,8 +35,7 @@ roundtrips =
     fuzz (Fuzz.listOfLengthBetween 0 3 fuzzSection) "Main parser roundtrips" <|
         \sections ->
             sections
-                |> List.map Admin.sectionToString
-                |> String.join "\n"
+                |> CYOA.toString
                 |> Parser.run CYOAParser.mainParser
                 |> Expect.equal (Ok sections)
 
@@ -46,35 +45,32 @@ fuzzSection =
     Fuzz.map3 Section
         niceNonemptyString
         (Fuzz.list niceString)
-        (Fuzz.listOfLengthBetween 1 3 (Fuzz.map Just fuzzPower))
+        (Fuzz.listOfLengthBetween 1 3 (Fuzz.map (\data -> data |> Power |> PowerElement) fuzzPower))
 
 
-fuzzPower : Fuzzer Power
+fuzzPower : Fuzzer PowerData
 fuzzPower =
-    Fuzz.map6 Power
+    Fuzz.map6 PowerData
         niceNonemptyString
-        fuzzCYOAId
+        fuzzId
         Fuzz.int
-        (Fuzz.maybe fuzzCYOAId)
+        (Fuzz.maybe fuzzId)
         (Fuzz.listOfLengthBetween 0 3 fuzzRequirement)
         niceString
 
 
-fuzzCYOAId : Fuzzer CYOAId
-fuzzCYOAId =
-    niceNonemptyString
+fuzzId : Fuzzer (Id a)
+fuzzId =
+    Fuzz.map Id.fromString niceNonemptyString
 
 
 fuzzRequirement : Fuzzer Requirement
 fuzzRequirement =
     Fuzz.oneOf
-        [ Fuzz.map Requirement fuzzCYOAId
+        [ Fuzz.map Requirement fuzzId
         , Fuzz.map2 AtLeastXOf
             Fuzz.int
-            (Fuzz.listOfLengthBetween 1
-                3
-                (Fuzz.map Requirement fuzzCYOAId)
-            )
+            (Fuzz.listOfLengthBetween 1 3 fuzzId)
         ]
 
 

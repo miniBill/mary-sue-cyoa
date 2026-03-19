@@ -1,8 +1,8 @@
 module View.CYOA exposing (view)
 
+import CYOA exposing (PowerData, PowerOrBreak(..), Requirement(..), Section, SectionElement(..))
 import Color
 import Color.Oklch exposing (Oklch)
-import Dict exposing (Dict)
 import Element exposing (Attribute, DeviceClass, Element, alignBottom, alignRight, alignTop, centerX, el, fill, height, paddingEach, paragraph, rgb, scrollbarY, text, width)
 import Element.Background as Background
 import Element.Border as Border
@@ -10,19 +10,21 @@ import Element.Font as Font
 import Element.Input as Input
 import EnglishNumbers
 import Html
+import Id exposing (Id)
 import List.Extra
 import Markdown.Parser
 import Markdown.Renderer
-import Set
+import SeqDict exposing (SeqDict)
+import SeqSet
 import Theme
 import Theme.Colors
-import Types exposing (CYOAId, Choices(..), Power, Requirement(..), Section, Tier(..))
+import Types exposing (Choices(..), Tier(..))
 
 
-view : DeviceClass -> Maybe (String -> Maybe Tier -> msg) -> { a | choices : Choices, data : { b | sections : List Section }, compact : Bool } -> Element msg
+view : DeviceClass -> Maybe (Id PowerOrBreak -> Maybe Tier -> msg) -> { a | choices : Choices, data : List Section, compact : Bool } -> Element msg
 view deviceClass chooseTier innerModel =
     let
-        alternatives : Dict CYOAId (List String)
+        alternatives : SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak))
         alternatives =
             Types.getAlternatives innerModel.data
     in
@@ -39,11 +41,11 @@ view deviceClass chooseTier innerModel =
         ]
         (List.map
             (viewSection deviceClass alternatives chooseTier innerModel.choices innerModel.compact)
-            innerModel.data.sections
+            innerModel.data
         )
 
 
-viewSection : DeviceClass -> Dict CYOAId (List String) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Bool -> Section -> Element msg
+viewSection : DeviceClass -> SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak)) -> Maybe (Id PowerOrBreak -> Maybe Tier -> msg) -> Choices -> Bool -> Section -> Element msg
 viewSection deviceClass alternatives chooseTier choices compact section =
     Theme.column
         [ Border.width 1
@@ -52,13 +54,34 @@ viewSection deviceClass alternatives chooseTier choices compact section =
         ]
         (paragraph [ Font.bold ] [ viewMarkdown section.name ]
             :: List.map (\line -> paragraph [] [ viewMarkdown line ]) section.description
-            ++ List.map
-                (viewGroup deviceClass alternatives chooseTier choices compact)
-                (Types.groupPowers section.powers)
+            ++ List.map (viewSectionElement deviceClass alternatives chooseTier choices compact) section.elements
         )
 
 
-viewGroup : DeviceClass -> Dict CYOAId (List String) -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Bool -> ( Power, List Power ) -> Element msg
+viewSectionElement : DeviceClass -> SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak)) -> Maybe (Id PowerOrBreak -> Maybe Tier -> msg) -> Choices -> Bool -> SectionElement -> Element msg
+viewSectionElement deviceClass alternatives chooseTier choices compact element =
+    case element of
+        PowerElement Break ->
+            Element.none
+
+        PowerElement (Power power) ->
+            viewGroup deviceClass alternatives chooseTier choices compact ( power, [] )
+
+        Subsection subsection ->
+            Theme.column
+                [ Border.width 1
+                , Theme.padding
+                , width fill
+                ]
+                (paragraph [ Font.bold ] [ viewMarkdown subsection.name ]
+                    :: List.map (\line -> paragraph [] [ viewMarkdown line ]) subsection.description
+                    ++ List.map
+                        (viewGroup deviceClass alternatives chooseTier choices compact)
+                        (Types.groupPowers subsection.powers)
+                )
+
+
+viewGroup : DeviceClass -> SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak)) -> Maybe (Id PowerOrBreak -> Maybe Tier -> msg) -> Choices -> Bool -> ( PowerData, List PowerData ) -> Element msg
 viewGroup deviceClass alternatives chooseTier choices compact ( power, powers ) =
     case powers of
         [] ->
@@ -92,7 +115,7 @@ viewMarkdown source =
                     Element.html <| Html.span [] html
 
 
-viewPower : DeviceClass -> Dict CYOAId (List String) -> List (Attribute msg) -> { tiersBelow : Bool } -> Maybe (String -> Maybe Tier -> msg) -> Choices -> Bool -> Power -> Element msg
+viewPower : DeviceClass -> SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak)) -> List (Attribute msg) -> { tiersBelow : Bool } -> Maybe (Id PowerOrBreak -> Maybe Tier -> msg) -> Choices -> Bool -> PowerData -> Element msg
 viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compact power =
     let
         currentTier : Maybe Tier
@@ -135,7 +158,9 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
                         Just replaces ->
                             paragraph [ Font.italic ] <|
                                 [ text "(Replaces "
-                                , text replaces
+
+                                -- TODO: lookup label
+                                , text (Id.toString replaces)
                                 , text ")"
                                 ]
                     , if List.isEmpty power.requires then
@@ -275,7 +300,7 @@ viewPower deviceClass alternatives attrs { tiersBelow } chooseTier choices compa
                     }
 
 
-viewRequirement : Dict CYOAId (List String) -> Choices -> Maybe Tier -> Requirement -> List (Element msg)
+viewRequirement : SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak)) -> Choices -> Maybe Tier -> Requirement -> List (Element msg)
 viewRequirement alternatives choices currentTier topLevelRequirement =
     let
         allRequirementsSatisfied : Bool
@@ -297,12 +322,13 @@ viewRequirement alternatives choices currentTier topLevelRequirement =
                             else
                                 rgb 1 0 0
                         ]
-                        (case Dict.get req alternatives of
+                        (case SeqDict.get req alternatives of
                             Just (first :: rest) ->
-                                text <| first ++ " (or " ++ String.join ", or " rest ++ ")"
+                                -- TODO: resolve Ids
+                                text <| Id.toString first ++ " (or " ++ String.join ", or " (List.map Id.toString rest) ++ ")"
 
                             _ ->
-                                text req
+                                text (Id.toString req)
                         )
                     ]
 
@@ -316,16 +342,11 @@ viewRequirement alternatives choices currentTier topLevelRequirement =
                             [ text ", " ]
                             (List.map
                                 (\child ->
-                                    let
-                                        s : String
-                                        s =
-                                            Types.requirementToString child
-                                    in
-                                    if String.contains "," s then
-                                        text "(" :: go child ++ [ text ")" ]
+                                    if String.contains "," (Id.toString child) then
+                                        text "(" :: go (Requirement child) ++ [ text ")" ]
 
                                     else
-                                        go child
+                                        go (Requirement child)
                                 )
                                 children
                             )
@@ -333,29 +354,39 @@ viewRequirement alternatives choices currentTier topLevelRequirement =
     go topLevelRequirement
 
 
-isRequirementSatisfied : Dict CYOAId (List String) -> Choices -> Requirement -> Bool
+isRequirementSatisfied : SeqDict (Id PowerOrBreak) (List (Id PowerOrBreak)) -> Choices -> Requirement -> Bool
 isRequirementSatisfied alternatives choices requirement =
     let
-        findWith : (CYOAId -> b -> Bool) -> b -> CYOAId -> Bool
+        findWith : (Id PowerOrBreak -> b -> Bool) -> b -> Id PowerOrBreak -> Bool
         findWith member collection powerId =
             member powerId collection
                 || List.any
                     (\power -> member power collection)
-                    (Maybe.withDefault [] <| Dict.get powerId alternatives)
+                    (Maybe.withDefault [] <| SeqDict.get powerId alternatives)
     in
     case ( choices, requirement ) of
         ( Simple simple, Requirement name ) ->
-            findWith Set.member simple name
+            findWith SeqSet.member simple name
 
         ( Tiered tiered, Requirement name ) ->
-            findWith Dict.member tiered name
+            findWith SeqDict.member tiered name
 
-        ( _, AtLeastXOf required names ) ->
+        ( Simple simple, AtLeastXOf required names ) ->
             let
                 got : Int
                 got =
                     List.Extra.count
-                        (isRequirementSatisfied alternatives choices)
+                        (\name -> findWith SeqSet.member simple name)
+                        names
+            in
+            got >= required
+
+        ( Tiered tiered, AtLeastXOf required names ) ->
+            let
+                got : Int
+                got =
+                    List.Extra.count
+                        (\name -> findWith SeqDict.member tiered name)
                         names
             in
             got >= required

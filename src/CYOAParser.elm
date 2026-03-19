@@ -1,9 +1,10 @@
 module CYOAParser exposing (mainParser, requirementParser)
 
+import CYOA exposing (PowerData, PowerOrBreak(..), Requirement(..), Section, SectionElement(..))
 import EnglishNumbers
+import Id exposing (Id)
 import Parser exposing ((|.), (|=), Parser)
 import Parser.Workaround
-import Types exposing (Power, Requirement(..), Section)
 
 
 mainParser : Parser (List Section)
@@ -24,7 +25,7 @@ parseSection =
         (\name description powers ->
             { name = name
             , description = description
-            , powers = powers
+            , elements = List.map PowerElement powers
             }
         )
         |= getChompedTrimmed (Parser.Workaround.chompUntilBefore "\n")
@@ -49,20 +50,20 @@ nonNameParser =
             )
 
 
-powerOrBreakParser : Parser (Maybe Power)
+powerOrBreakParser : Parser PowerOrBreak
 powerOrBreakParser =
     Parser.oneOf
-        [ Parser.succeed Nothing |. Parser.symbol "<br>" |. Parser.spaces
-        , Parser.map Just powerParser
+        [ Parser.succeed Break |. Parser.symbol "<br>" |. Parser.spaces
+        , Parser.map Power powerParser
         ]
 
 
-powerParser : Parser Power
+powerParser : Parser PowerData
 powerParser =
     Parser.succeed
         (\label cost maybeId replaces requires description ->
             { label = label
-            , id = Maybe.withDefault label maybeId
+            , id = Maybe.withDefault (Id.fromString label) maybeId
             , cost = cost
             , replaces = replaces
             , requires = requires
@@ -89,7 +90,7 @@ powerParser =
         |. Parser.token "☐"
         |. Parser.spaces
         |= Parser.oneOf
-            [ Parser.succeed Just
+            [ Parser.succeed (Just << Id.fromString)
                 |. Parser.token "Id:"
                 |. Parser.spaces
                 |= getChompedTrimmed (Parser.Workaround.chompUntilBefore "\n")
@@ -97,7 +98,7 @@ powerParser =
             ]
         |. Parser.spaces
         |= Parser.oneOf
-            [ Parser.succeed Just
+            [ Parser.succeed (Just << Id.fromString)
                 |. Parser.symbol "(Replaces"
                 |. Parser.spaces
                 |= getChompedTrimmed (Parser.Workaround.chompUntilBefore ")")
@@ -126,7 +127,7 @@ powerParser =
                                 in
                                 cut
                                     |> Parser.run requirementParser
-                                    |> Result.withDefault (Requirement cut)
+                                    |> Result.withDefault (Requirement (Id.fromString cut))
                             )
                 )
                 |. Parser.token "(Requires"
@@ -141,7 +142,17 @@ powerParser =
 
 requirementParser : Parser Requirement
 requirementParser =
-    Parser.succeed (\num reqs -> AtLeastXOf num ((List.map (Requirement << String.trim) << String.split ",") reqs))
+    Parser.succeed
+        (\num reqs ->
+            let
+                parsedReqs : List (Id PowerOrBreak)
+                parsedReqs =
+                    reqs
+                        |> String.split ","
+                        |> List.map (\piece -> Id.fromString (String.trim piece))
+            in
+            AtLeastXOf num parsedReqs
+        )
         |. Parser.symbol "at least"
         |. Parser.spaces
         |= numberParser

@@ -5,6 +5,7 @@ import Browser
 import Browser.Dom
 import Browser.Events
 import Browser.Navigation exposing (Key)
+import CYOA exposing (CYOA, PowerData, PowerOrBreak(..), Section, SectionElement(..))
 import Dict
 import Element exposing (DeviceClass(..), Element, alignRight, alignTop, centerX, centerY, column, el, fill, height, image, link, rgb, scrollbarX, shrink, text, width)
 import Element.Border as Border
@@ -12,13 +13,15 @@ import Element.Font as Font
 import Element.Input as Input
 import Element.Lazy
 import Html
+import Id exposing (Id)
 import Lamdera exposing (UrlRequest)
 import Maybe.Extra
-import Set exposing (Set)
+import SeqDict
+import SeqSet exposing (SeqSet)
 import Task
 import Theme
 import Theme.Colors
-import Types exposing (AdminModel, AdminMsg(..), CYOAId, Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), Section, TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..))
+import Types exposing (AdminModel, AdminMsg(..), Choices(..), FrontendModel, FrontendMsg(..), InnerAdminModel(..), InnerModel(..), Kind(..), TBAuthenticated(..), Tier(..), ToBackend(..), ToFrontend(..))
 import Types.Password as Password exposing (Password)
 import Url exposing (Url)
 import Url.Builder
@@ -82,7 +85,7 @@ updateFromBackend msg ({ inner } as model) =
                 TFRenamedCYOA from to ->
                     ( case inner of
                         Admin admin ->
-                            case Dict.get from admin.cyoas of
+                            case SeqDict.get from admin.cyoas of
                                 Nothing ->
                                     inner
 
@@ -91,8 +94,8 @@ updateFromBackend msg ({ inner } as model) =
                                         { admin
                                             | cyoas =
                                                 admin.cyoas
-                                                    |> Dict.remove from
-                                                    |> Dict.insert to cyoa
+                                                    |> SeqDict.remove from
+                                                    |> SeqDict.insert to cyoa
                                         }
 
                         _ ->
@@ -103,16 +106,16 @@ updateFromBackend msg ({ inner } as model) =
                 TFTransferredCYOA cyoaId userId ->
                     ( case inner of
                         Admin admin ->
-                            case Dict.get cyoaId admin.cyoas of
+                            case SeqDict.get cyoaId admin.cyoas of
                                 Nothing ->
                                     inner
 
-                                Just cyoa ->
+                                Just ( _, cyoa ) ->
                                     Admin
                                         { admin
                                             | cyoas =
-                                                Dict.insert cyoaId
-                                                    { cyoa | userId = userId }
+                                                SeqDict.insert cyoaId
+                                                    ( userId, cyoa )
                                                     admin.cyoas
                                         }
 
@@ -134,7 +137,7 @@ updateFromBackend msg ({ inner } as model) =
                             Admin
                                 { admin
                                     | cyoas =
-                                        Dict.remove cyoaId admin.cyoas
+                                        SeqDict.remove cyoaId admin.cyoas
                                     , inner =
                                         case admin.inner of
                                             Deleting id ->
@@ -167,16 +170,16 @@ updateFromBackend msg ({ inner } as model) =
                     , Cmd.none
                     )
 
-                TFGotCYOA cyoaId cyoa ->
+                TFGotCYOA cyoaId userId cyoa ->
                     case inner of
                         Loading id choices ->
                             if id == cyoaId then
                                 let
                                     cleaned :
-                                        { cyoaId : CYOAId
+                                        { cyoaId : Id CYOA
                                         , choices : Choices
                                         , compact : Bool
-                                        , data : Types.CYOA
+                                        , data : CYOA
                                         }
                                     cleaned =
                                         { cyoaId = cyoaId
@@ -198,10 +201,10 @@ updateFromBackend msg ({ inner } as model) =
                             if loaded.cyoaId == cyoaId then
                                 let
                                     cleaned :
-                                        { cyoaId : CYOAId
+                                        { cyoaId : Id CYOA
                                         , choices : Choices
                                         , compact : Bool
-                                        , data : Types.CYOA
+                                        , data : CYOA
                                         }
                                     cleaned =
                                         { loaded | data = cyoa }
@@ -218,7 +221,7 @@ updateFromBackend msg ({ inner } as model) =
                         Admin admin ->
                             ( Admin
                                 { admin
-                                    | cyoas = Dict.insert cyoaId cyoa admin.cyoas
+                                    | cyoas = SeqDict.insert cyoaId ( userId, cyoa ) admin.cyoas
                                 }
                             , Cmd.none
                             )
@@ -277,40 +280,60 @@ updateFromBackend msg ({ inner } as model) =
 
 
 cleanObsoleteChoices :
-    { cyoaId : CYOAId
+    { cyoaId : Id CYOA
     , choices : Choices
-    , data : Types.CYOA
+    , data : CYOA
     , compact : Bool
     }
     ->
-        { cyoaId : CYOAId
+        { cyoaId : Id CYOA
         , choices : Choices
         , compact : Bool
-        , data : Types.CYOA
+        , data : CYOA
         }
 cleanObsoleteChoices model =
     let
-        existing : Set CYOAId
+        existing : SeqSet (Id PowerOrBreak)
         existing =
-            model.data.sections
+            model.data
                 |> List.concatMap
                     (\section ->
-                        section.powers
-                            |> List.filterMap (Maybe.map (\power -> power.id))
+                        section.elements
+                            |> List.concatMap
+                                (\element ->
+                                    case element of
+                                        PowerElement Break ->
+                                            []
+
+                                        PowerElement (Power { id }) ->
+                                            [ id ]
+
+                                        Subsection subsection ->
+                                            List.filterMap
+                                                (\power ->
+                                                    case power of
+                                                        Power { id } ->
+                                                            Just id
+
+                                                        Break ->
+                                                            Nothing
+                                                )
+                                                subsection.powers
+                                )
                     )
-                |> Set.fromList
+                |> SeqSet.fromList
     in
     { model
         | choices =
             case model.choices of
                 Tiered dict ->
                     dict
-                        |> Dict.filter (\key _ -> Set.member key existing)
+                        |> SeqDict.filter (\key _ -> SeqSet.member key existing)
                         |> Tiered
 
                 Simple simple ->
                     simple
-                        |> Set.filter (\key -> Set.member key existing)
+                        |> SeqSet.filter (\key -> SeqSet.member key existing)
                         |> Simple
     }
 
@@ -363,9 +386,9 @@ init url key =
 
         _ ->
             let
-                cyoaId : CYOAId
+                cyoaId : Id CYOA
                 cyoaId =
-                    String.join "/" appUrl.path
+                    Id.fromString (String.join "/" appUrl.path)
             in
             ( { key = key
               , inner = Loading cyoaId <| urlToChoices appUrl
@@ -404,7 +427,7 @@ view deviceClass inner =
                 }
 
         Loading cyoaId _ ->
-            Theme.centralMessage <| "Loading " ++ cyoaId ++ "..."
+            Theme.centralMessage <| "Loading " ++ Id.toString cyoaId ++ "..."
 
         NotFound _ ->
             image [ centerX, centerY ]
@@ -431,7 +454,7 @@ view deviceClass inner =
                     Theme.row
                   )
                     [ Theme.padding, width fill ]
-                    [ viewScore innerModel.choices innerModel.data.sections
+                    [ viewScore innerModel.choices innerModel.data
                     , viewToggles innerModel.choices innerModel.compact
                     ]
                 , View.CYOA.view deviceClass (Just ChooseTier) innerModel
@@ -458,12 +481,13 @@ view deviceClass inner =
 urlToChoices : AppUrl -> Choices
 urlToChoices appUrl =
     let
-        list : List ( String, List String )
+        list : List ( Id PowerOrBreak, List String )
         list =
             appUrl.queryParameters
                 |> Dict.toList
+                |> List.map (Tuple.mapFirst Id.fromString)
 
-        tiered : Maybe (List ( String, Tier ))
+        tiered : Maybe (List ( Id PowerOrBreak, Tier ))
         tiered =
             list
                 |> Maybe.Extra.traverse
@@ -474,14 +498,14 @@ urlToChoices appUrl =
     case tiered of
         Just ((_ :: _) as t) ->
             t
-                |> Dict.fromList
-                |> Dict.remove tieredKey
+                |> SeqDict.fromList
+                |> SeqDict.remove tieredKey
                 |> Tiered
 
         _ ->
             list
                 |> List.map Tuple.first
-                |> Set.fromList
+                |> SeqSet.fromList
                 |> Simple
 
 
@@ -510,30 +534,30 @@ tierFromString strings =
             Nothing
 
 
-choicesToUrl : CYOAId -> Choices -> String
+choicesToUrl : Id CYOA -> Choices -> String
 choicesToUrl cyoaid selected =
     case selected of
         Tiered tiers ->
-            (if Dict.isEmpty tiers then
-                Dict.singleton tieredKey S
+            (if SeqDict.isEmpty tiers then
+                SeqDict.singleton tieredKey S
 
              else
                 tiers
             )
-                |> Dict.toList
-                |> List.map (\( key, value ) -> Url.Builder.string key <| Types.tierToString value)
-                |> Url.Builder.absolute (String.split "/" cyoaid)
+                |> SeqDict.toList
+                |> List.map (\( key, value ) -> Url.Builder.string (Id.toString key) <| Types.tierToString value)
+                |> Url.Builder.absolute (String.split "/" (Id.toString cyoaid))
 
         Simple choices ->
             choices
-                |> Set.toList
-                |> List.map (\key -> Url.Builder.string key "Y")
-                |> Url.Builder.absolute (String.split "/" cyoaid)
+                |> SeqSet.toList
+                |> List.map (\key -> Url.Builder.string (Id.toString key) "Y")
+                |> Url.Builder.absolute (String.split "/" (Id.toString cyoaid))
 
 
-tieredKey : String
+tieredKey : Id PowerOrBreak
 tieredKey =
-    "__tiered__"
+    Id.fromString "__tiered__"
 
 
 viewToggles : Choices -> Bool -> Element FrontendMsg
@@ -591,27 +615,7 @@ viewScore choices sections =
 
         sumIf : (Int -> Tier -> Bool) -> Int
         sumIf cond =
-            sections
-                |> List.map
-                    (\{ powers } ->
-                        powers
-                            |> List.filterMap identity
-                            |> List.map
-                                (\{ id, cost } ->
-                                    case Types.powerTier choices id of
-                                        Nothing ->
-                                            0
-
-                                        Just tier ->
-                                            if cond cost tier then
-                                                cost
-
-                                            else
-                                                0
-                                )
-                            |> List.sum
-                    )
-                |> List.sum
+            scoreWithCondition cond choices sections
     in
     case choices of
         Tiered _ ->
@@ -682,6 +686,53 @@ viewScore choices sections =
                 (text <| "Score " ++ String.fromInt costs ++ "/" ++ String.fromInt total)
 
 
+scoreWithCondition : (Int -> Tier -> Bool) -> Choices -> List Section -> Int
+scoreWithCondition cond choices sections =
+    let
+        sectionScore : Section -> Int
+        sectionScore { elements } =
+            elements
+                |> List.map elementScore
+                |> List.sum
+
+        elementScore : SectionElement -> Int
+        elementScore element =
+            case element of
+                PowerElement pob ->
+                    powerOrBreakScore pob
+
+                Subsection subsection ->
+                    subsection.powers
+                        |> List.map powerOrBreakScore
+                        |> List.sum
+
+        powerOrBreakScore : PowerOrBreak -> Int
+        powerOrBreakScore pob =
+            case pob of
+                Break ->
+                    0
+
+                Power p ->
+                    powerScore p
+
+        powerScore : PowerData -> Int
+        powerScore { id, cost } =
+            case Types.powerTier choices id of
+                Nothing ->
+                    0
+
+                Just tier ->
+                    if cond cost tier then
+                        cost
+
+                    else
+                        0
+    in
+    sections
+        |> List.map sectionScore
+        |> List.sum
+
+
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 update msg model =
     case ( msg, model.inner ) of
@@ -701,17 +752,17 @@ update msg model =
                             inner.choices
 
                         ( TieredKind, Simple simple ) ->
-                            Set.toList simple
+                            SeqSet.toList simple
                                 |> List.map (\name -> ( name, S ))
-                                |> Dict.fromList
+                                |> SeqDict.fromList
                                 |> Tiered
 
                         ( SimpleKind, Simple _ ) ->
                             inner.choices
 
                         ( SimpleKind, Tiered tiered ) ->
-                            Dict.keys tiered
-                                |> Set.fromList
+                            SeqDict.keys tiered
+                                |> SeqSet.fromList
                                 |> Simple
             in
             ( { model | inner = Loaded { inner | choices = newChoices } }
@@ -734,16 +785,16 @@ update msg model =
                 newChoices =
                     case ( tier, inner.choices ) of
                         ( Just t, Tiered tiered ) ->
-                            Tiered <| Dict.insert name t tiered
+                            Tiered <| SeqDict.insert name t tiered
 
                         ( Nothing, Tiered tiered ) ->
-                            Tiered <| Dict.remove name tiered
+                            Tiered <| SeqDict.remove name tiered
 
                         ( Just _, Simple simple ) ->
-                            Simple <| Set.insert name simple
+                            Simple <| SeqSet.insert name simple
 
                         ( Nothing, Simple simple ) ->
-                            Simple <| Set.remove name simple
+                            Simple <| SeqSet.remove name simple
             in
             ( { model | inner = Loaded { inner | choices = newChoices } }
             , Browser.Navigation.replaceUrl model.key

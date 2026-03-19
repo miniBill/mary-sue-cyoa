@@ -1,12 +1,14 @@
 module Backend exposing (app)
 
-import Dict exposing (Dict)
+import CYOA exposing (CYOA)
 import Env
+import Id exposing (Id)
 import Lamdera exposing (ClientId)
 import List.Extra
 import Platform.Cmd as Cmd
 import Random
-import Types exposing (BackendModel, BackendMsg(..), CYOA, CYOAId, TBAuthenticated(..), ToBackend(..), ToFrontend(..), User, UserId)
+import SeqDict exposing (SeqDict)
+import Types exposing (BackendModel, BackendMsg(..), TBAuthenticated(..), ToBackend(..), ToFrontend(..), User)
 import Types.Password as Password exposing (Password)
 
 
@@ -27,9 +29,9 @@ app =
 
 init : ( BackendModel, Cmd backendMsg )
 init =
-    ( { cyoas = Dict.empty
-      , connections = Dict.empty
-      , users = Dict.singleton "admin" { password = Password.password Env.password }
+    ( { cyoas = SeqDict.empty
+      , connections = SeqDict.empty
+      , users = SeqDict.singleton (Id.fromString "admin") { password = Password.password Env.password }
       }
     , Cmd.none
     )
@@ -39,12 +41,12 @@ update : BackendMsg -> BackendModel -> ( BackendModel, Cmd BackendMsg )
 update msg model =
     case msg of
         BackendDisconnected clientId ->
-            ( { model | connections = Dict.remove clientId model.connections }, Cmd.none )
+            ( { model | connections = SeqDict.remove clientId model.connections }, Cmd.none )
 
         DoPasswordReset clientId userId password ->
             ( { model
                 | users =
-                    Dict.insert userId
+                    SeqDict.insert userId
                         { password = Password.password password }
                         model.users
               }
@@ -54,7 +56,7 @@ update msg model =
         DoCreateUser clientId userId password ->
             ( { model
                 | users =
-                    Dict.insert userId
+                    SeqDict.insert userId
                         { password = Password.password password }
                         model.users
               }
@@ -66,13 +68,13 @@ updateFromFrontend : Lamdera.SessionId -> Lamdera.ClientId -> ToBackend -> Backe
 updateFromFrontend _ clientId msg model =
     case msg of
         TBGetCYOA cyoaId ->
-            case Dict.get cyoaId model.cyoas of
+            case SeqDict.get cyoaId model.cyoas of
                 Nothing ->
                     ( model, Lamdera.sendToFrontend clientId <| TFCYOAMissing cyoaId )
 
-                Just cyoa ->
-                    ( { model | connections = Dict.insert clientId cyoaId model.connections }
-                    , Lamdera.sendToFrontend clientId <| TFGotCYOA cyoaId cyoa
+                Just ( cyoaUserId, cyoa ) ->
+                    ( { model | connections = SeqDict.insert clientId cyoaId model.connections }
+                    , Lamdera.sendToFrontend clientId <| TFGotCYOA cyoaId cyoaUserId cyoa
                     )
 
         TBAuthenticated password inner ->
@@ -88,15 +90,15 @@ updateFromFrontend _ clientId msg model =
                             ( model
                             , Lamdera.sendToFrontend clientId <|
                                 TFUsers <|
-                                    if userId == "admin" then
-                                        Dict.keys model.users
+                                    if isAdmin userId then
+                                        SeqDict.keys model.users
 
                                     else
                                         [ userId ]
                             )
 
                         TBResetPassword targetId ->
-                            if userId == "admin" || targetId == userId then
+                            if isAdmin userId || targetId == userId then
                                 ( model, resetPassword clientId targetId )
 
                             else
@@ -104,32 +106,27 @@ updateFromFrontend _ clientId msg model =
 
                         TBUpdateCYOA cyoaId sections ->
                             checkingUserId userId cyoaId model <|
-                                \cyoa ->
-                                    let
-                                        updated : CYOA
-                                        updated =
-                                            { cyoa | sections = sections }
-                                    in
-                                    ( { model | cyoas = Dict.insert cyoaId updated model.cyoas }
-                                    , sendTo clientId cyoaId (TFGotCYOA cyoaId updated) model.connections
+                                \( cyoaUserId, _ ) ->
+                                    ( { model | cyoas = SeqDict.insert cyoaId ( userId, sections ) model.cyoas }
+                                    , sendTo clientId cyoaId (TFGotCYOA cyoaId cyoaUserId sections) model.connections
                                     )
 
                         TBCreateCYOA cyoaId ->
-                            if Dict.member cyoaId model.cyoas then
+                            if SeqDict.member cyoaId model.cyoas then
                                 ( model, Cmd.none )
 
                             else
                                 let
                                     newCYOA : CYOA
                                     newCYOA =
-                                        { sections = [], userId = userId }
+                                        CYOA.empty
                                 in
-                                ( { model | cyoas = Dict.insert cyoaId newCYOA model.cyoas }
-                                , sendTo clientId cyoaId (TFGotCYOA cyoaId newCYOA) model.connections
+                                ( { model | cyoas = SeqDict.insert cyoaId ( userId, newCYOA ) model.cyoas }
+                                , sendTo clientId cyoaId (TFGotCYOA cyoaId userId newCYOA) model.connections
                                 )
 
                         TBCreateUser newUserId ->
-                            if Dict.member newUserId model.users then
+                            if SeqDict.member newUserId model.users then
                                 ( model, Cmd.none )
 
                             else
@@ -143,7 +140,7 @@ updateFromFrontend _ clientId msg model =
                                     let
                                         newModel : BackendModel
                                         newModel =
-                                            { model | cyoas = Dict.remove cyoaId model.cyoas }
+                                            { model | cyoas = SeqDict.remove cyoaId model.cyoas }
                                     in
                                     ( newModel
                                     , sendCYOAsToFrontend clientId userId newModel
@@ -151,15 +148,15 @@ updateFromFrontend _ clientId msg model =
 
                         TBRenameCYOA oldCyoaId newCyoaId ->
                             checkingUserId userId oldCyoaId model <|
-                                \cyoa ->
+                                \( cyoaUserId, cyoa ) ->
                                     let
                                         newModel : BackendModel
                                         newModel =
                                             { model
                                                 | cyoas =
                                                     model.cyoas
-                                                        |> Dict.remove oldCyoaId
-                                                        |> Dict.insert newCyoaId cyoa
+                                                        |> SeqDict.remove oldCyoaId
+                                                        |> SeqDict.insert newCyoaId ( cyoaUserId, cyoa )
                                             }
                                     in
                                     ( newModel
@@ -168,14 +165,14 @@ updateFromFrontend _ clientId msg model =
 
                         TBTransferCYOA cyoaId newUserId ->
                             checkingUserId userId cyoaId model <|
-                                \cyoa ->
+                                \( _, cyoa ) ->
                                     let
                                         newModel : BackendModel
                                         newModel =
                                             { model
                                                 | cyoas =
-                                                    Dict.insert cyoaId
-                                                        { cyoa | userId = newUserId }
+                                                    SeqDict.insert cyoaId
+                                                        ( newUserId, cyoa )
                                                         model.cyoas
                                             }
                                     in
@@ -187,35 +184,40 @@ updateFromFrontend _ clientId msg model =
                     ( model, Cmd.none )
 
 
-sendCYOAsToFrontend : ClientId -> UserId -> BackendModel -> Cmd BackendMsg
+sendCYOAsToFrontend : ClientId -> Id User -> BackendModel -> Cmd BackendMsg
 sendCYOAsToFrontend clientId userId model =
     Lamdera.sendToFrontend clientId <|
         TFAdmin <|
-            if userId == "admin" then
+            if isAdmin userId then
                 model.cyoas
 
             else
-                Dict.filter (\_ cyoa -> cyoa.userId == userId) model.cyoas
+                SeqDict.filter (\_ ( cyoaUserId, _ ) -> cyoaUserId == userId) model.cyoas
 
 
-checkingUserId : UserId -> CYOAId -> BackendModel -> (CYOA -> ( BackendModel, Cmd msg )) -> ( BackendModel, Cmd msg )
+isAdmin : Id User -> Bool
+isAdmin userId =
+    Id.toString userId == "admin"
+
+
+checkingUserId : Id User -> Id CYOA -> BackendModel -> (( Id User, CYOA ) -> ( BackendModel, Cmd msg )) -> ( BackendModel, Cmd msg )
 checkingUserId userId cyoaId model inner =
-    case Dict.get cyoaId model.cyoas of
+    case SeqDict.get cyoaId model.cyoas of
         Nothing ->
             ( model, Cmd.none )
 
-        Just cyoa ->
-            if userId == "admin" || cyoa.userId == userId then
-                inner cyoa
+        Just ( cyoaUserId, cyoa ) ->
+            if isAdmin userId || cyoaUserId == userId then
+                inner ( cyoaUserId, cyoa )
 
             else
                 ( model, Cmd.none )
 
 
-checkPassword : Password -> Dict UserId User -> Maybe UserId
+checkPassword : Password -> SeqDict (Id User) User -> Maybe (Id User)
 checkPassword password users =
     users
-        |> Dict.toList
+        |> SeqDict.toList
         |> List.Extra.findMap
             (\( userId, user ) ->
                 if Password.isCorrect user.password password then
@@ -226,12 +228,12 @@ checkPassword password users =
             )
 
 
-resetPassword : ClientId -> UserId -> Cmd BackendMsg
+resetPassword : ClientId -> Id User -> Cmd BackendMsg
 resetPassword clientId userId =
     Random.generate (DoPasswordReset clientId userId) randomPassword
 
 
-createUser : ClientId -> UserId -> Cmd BackendMsg
+createUser : ClientId -> Id User -> Cmd BackendMsg
 createUser clientId userId =
     Random.generate (DoCreateUser clientId userId) randomPassword
 
@@ -259,10 +261,10 @@ randomPassword =
             )
 
 
-sendTo : ClientId -> CYOAId -> ToFrontend -> Dict ClientId CYOAId -> Cmd msg
+sendTo : ClientId -> Id CYOA -> ToFrontend -> SeqDict ClientId (Id CYOA) -> Cmd msg
 sendTo admin cyoaId msg connections =
     connections
-        |> Dict.toList
+        |> SeqDict.toList
         |> List.filterMap
             (\( clientId, id ) ->
                 if id == cyoaId then

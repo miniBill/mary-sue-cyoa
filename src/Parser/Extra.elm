@@ -1,4 +1,4 @@
-module Parser.Extra exposing (DeadEnd, Extract, errorToHtml, parser, parserAdvanced)
+module Parser.Extra exposing (DeadEnd, Extract, errorToHtml, parser)
 
 import Html exposing (Html)
 import Html.Attributes
@@ -40,17 +40,6 @@ type Line a
 parser : Extract {} Problem
 parser =
     { contextStack = \_ -> []
-    , problemToString = problemToExpected
-    }
-
-
-parserAdvanced :
-    Extract
-        { contextStack : List { row : Int, col : Int, context : String }
-        }
-        Problem
-parserAdvanced =
-    { contextStack = .contextStack
     , problemToString = problemToExpected
     }
 

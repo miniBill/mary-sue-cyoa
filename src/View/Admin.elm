@@ -8,6 +8,7 @@ import Element.Input as Input
 import Html
 import Id exposing (Id)
 import Parser
+import Parser.Error
 import Parser.Extra
 import SeqDict exposing (SeqDict)
 import SeqSet
@@ -166,7 +167,7 @@ viewEditing deviceClass cyoaId old current preview =
             el [ Font.color <| rgb 1 0 0 ] <|
                 Element.html <|
                     Html.pre []
-                        (Parser.Extra.errorToHtml Parser.Extra.parser current e)
+                        (Parser.Extra.errorToHtml Parser.Error.forParser current e)
     in
     [ Theme.row
         [ width fill
